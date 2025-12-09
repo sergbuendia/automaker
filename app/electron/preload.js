@@ -21,6 +21,98 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // App APIs
   getPath: (name) => ipcRenderer.invoke("app:getPath", name),
+  saveImageToTemp: (data, filename, mimeType) =>
+    ipcRenderer.invoke("app:saveImageToTemp", { data, filename, mimeType }),
+
+  // Agent APIs
+  agent: {
+    // Start or resume a conversation
+    start: (sessionId, workingDirectory) =>
+      ipcRenderer.invoke("agent:start", { sessionId, workingDirectory }),
+
+    // Send a message to the agent
+    send: (sessionId, message, workingDirectory, imagePaths) =>
+      ipcRenderer.invoke("agent:send", { sessionId, message, workingDirectory, imagePaths }),
+
+    // Get conversation history
+    getHistory: (sessionId) =>
+      ipcRenderer.invoke("agent:getHistory", { sessionId }),
+
+    // Stop current execution
+    stop: (sessionId) =>
+      ipcRenderer.invoke("agent:stop", { sessionId }),
+
+    // Clear conversation
+    clear: (sessionId) =>
+      ipcRenderer.invoke("agent:clear", { sessionId }),
+
+    // Subscribe to streaming events
+    onStream: (callback) => {
+      const subscription = (_, data) => callback(data);
+      ipcRenderer.on("agent:stream", subscription);
+      // Return unsubscribe function
+      return () => ipcRenderer.removeListener("agent:stream", subscription);
+    },
+  },
+
+  // Session Management APIs
+  sessions: {
+    // List all sessions
+    list: (includeArchived) =>
+      ipcRenderer.invoke("sessions:list", { includeArchived }),
+
+    // Create a new session
+    create: (name, projectPath, workingDirectory) =>
+      ipcRenderer.invoke("sessions:create", { name, projectPath, workingDirectory }),
+
+    // Update session metadata
+    update: (sessionId, name, tags) =>
+      ipcRenderer.invoke("sessions:update", { sessionId, name, tags }),
+
+    // Archive a session
+    archive: (sessionId) =>
+      ipcRenderer.invoke("sessions:archive", { sessionId }),
+
+    // Unarchive a session
+    unarchive: (sessionId) =>
+      ipcRenderer.invoke("sessions:unarchive", { sessionId }),
+
+    // Delete a session permanently
+    delete: (sessionId) =>
+      ipcRenderer.invoke("sessions:delete", { sessionId }),
+  },
+
+  // Auto Mode API
+  autoMode: {
+    // Start auto mode
+    start: (projectPath) =>
+      ipcRenderer.invoke("auto-mode:start", { projectPath }),
+
+    // Stop auto mode
+    stop: () => ipcRenderer.invoke("auto-mode:stop"),
+
+    // Get auto mode status
+    status: () => ipcRenderer.invoke("auto-mode:status"),
+
+    // Run a specific feature
+    runFeature: (projectPath, featureId) =>
+      ipcRenderer.invoke("auto-mode:run-feature", { projectPath, featureId }),
+
+    // Verify a specific feature by running its tests
+    verifyFeature: (projectPath, featureId) =>
+      ipcRenderer.invoke("auto-mode:verify-feature", { projectPath, featureId }),
+
+    // Listen for auto mode events
+    onEvent: (callback) => {
+      const subscription = (_, data) => callback(data);
+      ipcRenderer.on("auto-mode:event", subscription);
+
+      // Return unsubscribe function
+      return () => {
+        ipcRenderer.removeListener("auto-mode:event", subscription);
+      };
+    },
+  },
 });
 
 // Also expose a flag to detect if we're in Electron

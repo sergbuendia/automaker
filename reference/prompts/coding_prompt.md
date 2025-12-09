@@ -115,7 +115,7 @@ npx playwright test tests/[feature-name].spec.ts --headed
 import { test, expect } from "@playwright/test";
 
 test("user can send a message and receive response", async ({ page }) => {
-  await page.goto("http://localhost:3000");
+  await page.goto("http://localhost:3007");
 
   // Happy path: main user flow
   await page.fill('[data-testid="message-input"]', "Hello world");
@@ -231,7 +231,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Feature Name", () => {
   test("happy path: user completes main workflow", async ({ page }) => {
-    await page.goto("http://localhost:3000");
+    await page.goto("http://localhost:3007");
 
     // Interact with UI elements
     await page.click('button[data-testid="action"]');

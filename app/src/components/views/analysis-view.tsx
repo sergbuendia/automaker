@@ -3,7 +3,13 @@
 import { useCallback, useState } from "react";
 import { useAppStore, FileTreeNode, ProjectAnalysis } from "@/store/app-store";
 import { getElectronAPI } from "@/lib/electron";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Folder,
@@ -16,6 +22,10 @@ import {
   BarChart3,
   FileCode,
   Loader2,
+  FileText,
+  CheckCircle,
+  AlertCircle,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -60,7 +70,15 @@ export function AnalysisView() {
     clearAnalysis,
   } = useAppStore();
 
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set()
+  );
+  const [isGeneratingSpec, setIsGeneratingSpec] = useState(false);
+  const [specGenerated, setSpecGenerated] = useState(false);
+  const [specError, setSpecError] = useState<string | null>(null);
+  const [isGeneratingFeatureList, setIsGeneratingFeatureList] = useState(false);
+  const [featureListGenerated, setFeatureListGenerated] = useState(false);
+  const [featureListError, setFeatureListError] = useState<string | null>(null);
 
   // Recursively scan directory
   const scanDirectory = useCallback(
@@ -161,7 +179,541 @@ export function AnalysisView() {
     } finally {
       setIsAnalyzing(false);
     }
-  }, [currentProject, setIsAnalyzing, clearAnalysis, scanDirectory, setProjectAnalysis]);
+  }, [
+    currentProject,
+    setIsAnalyzing,
+    clearAnalysis,
+    scanDirectory,
+    setProjectAnalysis,
+  ]);
+
+  // Generate app_spec.txt from analysis
+  const generateSpec = useCallback(async () => {
+    if (!currentProject || !projectAnalysis) return;
+
+    setIsGeneratingSpec(true);
+    setSpecError(null);
+    setSpecGenerated(false);
+
+    try {
+      const api = getElectronAPI();
+
+      // Read key files to understand the project better
+      const fileContents: Record<string, string> = {};
+      const keyFiles = ['package.json', 'README.md', 'tsconfig.json'];
+
+      // Collect file paths from analysis
+      const collectFilePaths = (nodes: FileTreeNode[], maxDepth: number = 3, currentDepth: number = 0): string[] => {
+        const paths: string[] = [];
+        for (const node of nodes) {
+          if (!node.isDirectory) {
+            paths.push(node.path);
+          } else if (node.children && currentDepth < maxDepth) {
+            paths.push(...collectFilePaths(node.children, maxDepth, currentDepth + 1));
+          }
+        }
+        return paths;
+      };
+
+      const allFilePaths = collectFilePaths(projectAnalysis.fileTree);
+
+      // Try to read key configuration files
+      for (const keyFile of keyFiles) {
+        const filePath = `${currentProject.path}/${keyFile}`;
+        const exists = await api.exists(filePath);
+        if (exists) {
+          const result = await api.readFile(filePath);
+          if (result.success && result.content) {
+            fileContents[keyFile] = result.content;
+          }
+        }
+      }
+
+      // Detect project type and tech stack
+      const detectTechStack = () => {
+        const stack: string[] = [];
+        const extensions = projectAnalysis.filesByExtension;
+
+        // Check package.json for dependencies
+        if (fileContents['package.json']) {
+          try {
+            const pkg = JSON.parse(fileContents['package.json']);
+            if (pkg.dependencies?.react || pkg.dependencies?.['react-dom']) stack.push('React');
+            if (pkg.dependencies?.next) stack.push('Next.js');
+            if (pkg.dependencies?.vue) stack.push('Vue');
+            if (pkg.dependencies?.angular) stack.push('Angular');
+            if (pkg.dependencies?.express) stack.push('Express');
+            if (pkg.dependencies?.electron) stack.push('Electron');
+            if (pkg.devDependencies?.typescript || pkg.dependencies?.typescript) stack.push('TypeScript');
+            if (pkg.devDependencies?.tailwindcss || pkg.dependencies?.tailwindcss) stack.push('Tailwind CSS');
+            if (pkg.devDependencies?.playwright || pkg.dependencies?.playwright) stack.push('Playwright');
+            if (pkg.devDependencies?.jest || pkg.dependencies?.jest) stack.push('Jest');
+          } catch {
+            // Ignore JSON parse errors
+          }
+        }
+
+        // Detect by file extensions
+        if (extensions['ts'] || extensions['tsx']) stack.push('TypeScript');
+        if (extensions['py']) stack.push('Python');
+        if (extensions['go']) stack.push('Go');
+        if (extensions['rs']) stack.push('Rust');
+        if (extensions['java']) stack.push('Java');
+        if (extensions['css'] || extensions['scss'] || extensions['sass']) stack.push('CSS/SCSS');
+
+        // Remove duplicates
+        return [...new Set(stack)];
+      };
+
+      // Get project name from package.json or folder name
+      const getProjectName = () => {
+        if (fileContents['package.json']) {
+          try {
+            const pkg = JSON.parse(fileContents['package.json']);
+            if (pkg.name) return pkg.name;
+          } catch {
+            // Ignore JSON parse errors
+          }
+        }
+        // Fall back to folder name
+        return currentProject.name;
+      };
+
+      // Get project description from package.json or README
+      const getProjectDescription = () => {
+        if (fileContents['package.json']) {
+          try {
+            const pkg = JSON.parse(fileContents['package.json']);
+            if (pkg.description) return pkg.description;
+          } catch {
+            // Ignore JSON parse errors
+          }
+        }
+        if (fileContents['README.md']) {
+          // Extract first paragraph from README
+          const lines = fileContents['README.md'].split('\n');
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('!') && trimmed.length > 20) {
+              return trimmed.substring(0, 200);
+            }
+          }
+        }
+        return 'A software project';
+      };
+
+      // Group files by directory for structure analysis
+      const analyzeStructure = () => {
+        const structure: string[] = [];
+        const topLevelDirs = projectAnalysis.fileTree.filter(n => n.isDirectory).map(n => n.name);
+
+        for (const dir of topLevelDirs) {
+          structure.push(`      <directory name="${dir}" />`);
+        }
+        return structure.join('\n');
+      };
+
+      const projectName = getProjectName();
+      const description = getProjectDescription();
+      const techStack = detectTechStack();
+
+      // Generate the spec content
+      const specContent = `<project_specification>
+  <project_name>${projectName}</project_name>
+
+  <overview>
+    ${description}
+  </overview>
+
+  <technology_stack>
+    <languages>
+${Object.entries(projectAnalysis.filesByExtension)
+  .filter(([ext]) => ['ts', 'tsx', 'js', 'jsx', 'py', 'go', 'rs', 'java', 'cpp', 'c'].includes(ext))
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 5)
+  .map(([ext, count]) => `      <language ext=".${ext}" count="${count}" />`)
+  .join('\n')}
+    </languages>
+    <frameworks>
+${techStack.map(tech => `      <framework>${tech}</framework>`).join('\n')}
+    </frameworks>
+  </technology_stack>
+
+  <project_structure>
+    <total_files>${projectAnalysis.totalFiles}</total_files>
+    <total_directories>${projectAnalysis.totalDirectories}</total_directories>
+    <top_level_structure>
+${analyzeStructure()}
+    </top_level_structure>
+  </project_structure>
+
+  <file_breakdown>
+${Object.entries(projectAnalysis.filesByExtension)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 10)
+  .map(([ext, count]) => `    <extension type="${ext.startsWith('(') ? ext : '.' + ext}" count="${count}" />`)
+  .join('\n')}
+  </file_breakdown>
+
+  <analyzed_at>${projectAnalysis.analyzedAt}</analyzed_at>
+</project_specification>
+`;
+
+      // Write the spec file
+      const specPath = `${currentProject.path}/app_spec.txt`;
+      const writeResult = await api.writeFile(specPath, specContent);
+
+      if (writeResult.success) {
+        setSpecGenerated(true);
+      } else {
+        setSpecError(writeResult.error || 'Failed to write spec file');
+      }
+    } catch (error) {
+      console.error('Failed to generate spec:', error);
+      setSpecError(error instanceof Error ? error.message : 'Failed to generate spec');
+    } finally {
+      setIsGeneratingSpec(false);
+    }
+  }, [currentProject, projectAnalysis]);
+
+  // Generate feature_list.json from analysis
+  const generateFeatureList = useCallback(async () => {
+    if (!currentProject || !projectAnalysis) return;
+
+    setIsGeneratingFeatureList(true);
+    setFeatureListError(null);
+    setFeatureListGenerated(false);
+
+    try {
+      const api = getElectronAPI();
+
+      // Read key files to understand the project
+      const fileContents: Record<string, string> = {};
+      const keyFiles = ['package.json', 'README.md'];
+
+      // Try to read key configuration files
+      for (const keyFile of keyFiles) {
+        const filePath = `${currentProject.path}/${keyFile}`;
+        const exists = await api.exists(filePath);
+        if (exists) {
+          const result = await api.readFile(filePath);
+          if (result.success && result.content) {
+            fileContents[keyFile] = result.content;
+          }
+        }
+      }
+
+      // Collect file paths from analysis
+      const collectFilePaths = (nodes: FileTreeNode[]): string[] => {
+        const paths: string[] = [];
+        for (const node of nodes) {
+          if (!node.isDirectory) {
+            paths.push(node.path);
+          } else if (node.children) {
+            paths.push(...collectFilePaths(node.children));
+          }
+        }
+        return paths;
+      };
+
+      const allFilePaths = collectFilePaths(projectAnalysis.fileTree);
+
+      // Analyze directories and files to detect features
+      interface DetectedFeature {
+        category: string;
+        description: string;
+        steps: string[];
+        passes: boolean;
+      }
+
+      const detectedFeatures: DetectedFeature[] = [];
+
+      // Detect features based on project structure and files
+      const detectFeatures = () => {
+        const extensions = projectAnalysis.filesByExtension;
+        const topLevelDirs = projectAnalysis.fileTree.filter(n => n.isDirectory).map(n => n.name.toLowerCase());
+        const topLevelFiles = projectAnalysis.fileTree.filter(n => !n.isDirectory).map(n => n.name.toLowerCase());
+
+        // Check for test directories and files
+        const hasTests = topLevelDirs.includes('tests') ||
+                         topLevelDirs.includes('test') ||
+                         topLevelDirs.includes('__tests__') ||
+                         allFilePaths.some(p => p.includes('.spec.') || p.includes('.test.'));
+
+        if (hasTests) {
+          detectedFeatures.push({
+            category: "Testing",
+            description: "Automated test suite",
+            steps: [
+              "Step 1: Tests directory exists",
+              "Step 2: Test files are present",
+              "Step 3: Run test suite"
+            ],
+            passes: true
+          });
+        }
+
+        // Check for components directory (UI components)
+        const hasComponents = topLevelDirs.includes('components') ||
+                             allFilePaths.some(p => p.toLowerCase().includes('/components/'));
+
+        if (hasComponents) {
+          detectedFeatures.push({
+            category: "UI/Design",
+            description: "Component-based UI architecture",
+            steps: [
+              "Step 1: Components directory exists",
+              "Step 2: UI components are defined",
+              "Step 3: Components are reusable"
+            ],
+            passes: true
+          });
+        }
+
+        // Check for src directory (organized source code)
+        if (topLevelDirs.includes('src')) {
+          detectedFeatures.push({
+            category: "Project Structure",
+            description: "Organized source code structure",
+            steps: [
+              "Step 1: Source directory exists",
+              "Step 2: Code is properly organized",
+              "Step 3: Follows best practices"
+            ],
+            passes: true
+          });
+        }
+
+        // Check package.json for dependencies and detect features
+        if (fileContents['package.json']) {
+          try {
+            const pkg = JSON.parse(fileContents['package.json']);
+
+            // React/Next.js app detection
+            if (pkg.dependencies?.react || pkg.dependencies?.['react-dom']) {
+              detectedFeatures.push({
+                category: "Frontend",
+                description: "React-based user interface",
+                steps: [
+                  "Step 1: React is installed",
+                  "Step 2: Components render correctly",
+                  "Step 3: State management works"
+                ],
+                passes: true
+              });
+            }
+
+            if (pkg.dependencies?.next) {
+              detectedFeatures.push({
+                category: "Framework",
+                description: "Next.js framework integration",
+                steps: [
+                  "Step 1: Next.js is configured",
+                  "Step 2: Pages/routes are defined",
+                  "Step 3: Server-side rendering works"
+                ],
+                passes: true
+              });
+            }
+
+            // TypeScript support
+            if (pkg.devDependencies?.typescript || pkg.dependencies?.typescript || extensions['ts'] || extensions['tsx']) {
+              detectedFeatures.push({
+                category: "Developer Experience",
+                description: "TypeScript type safety",
+                steps: [
+                  "Step 1: TypeScript is configured",
+                  "Step 2: Type definitions exist",
+                  "Step 3: Code compiles without errors"
+                ],
+                passes: true
+              });
+            }
+
+            // Tailwind CSS
+            if (pkg.devDependencies?.tailwindcss || pkg.dependencies?.tailwindcss) {
+              detectedFeatures.push({
+                category: "UI/Design",
+                description: "Tailwind CSS styling",
+                steps: [
+                  "Step 1: Tailwind is configured",
+                  "Step 2: Styles are applied",
+                  "Step 3: Responsive design works"
+                ],
+                passes: true
+              });
+            }
+
+            // ESLint/Prettier (code quality)
+            if (pkg.devDependencies?.eslint || pkg.devDependencies?.prettier) {
+              detectedFeatures.push({
+                category: "Developer Experience",
+                description: "Code quality tools",
+                steps: [
+                  "Step 1: Linter is configured",
+                  "Step 2: Code passes lint checks",
+                  "Step 3: Formatting is consistent"
+                ],
+                passes: true
+              });
+            }
+
+            // Electron (desktop app)
+            if (pkg.dependencies?.electron || pkg.devDependencies?.electron) {
+              detectedFeatures.push({
+                category: "Platform",
+                description: "Electron desktop application",
+                steps: [
+                  "Step 1: Electron is configured",
+                  "Step 2: Main process runs",
+                  "Step 3: Renderer process loads"
+                ],
+                passes: true
+              });
+            }
+
+            // Playwright testing
+            if (pkg.devDependencies?.playwright || pkg.devDependencies?.['@playwright/test']) {
+              detectedFeatures.push({
+                category: "Testing",
+                description: "Playwright end-to-end testing",
+                steps: [
+                  "Step 1: Playwright is configured",
+                  "Step 2: E2E tests are defined",
+                  "Step 3: Tests pass successfully"
+                ],
+                passes: true
+              });
+            }
+
+          } catch {
+            // Ignore JSON parse errors
+          }
+        }
+
+        // Check for documentation
+        if (topLevelFiles.includes('readme.md') || topLevelDirs.includes('docs')) {
+          detectedFeatures.push({
+            category: "Documentation",
+            description: "Project documentation",
+            steps: [
+              "Step 1: README exists",
+              "Step 2: Documentation is comprehensive",
+              "Step 3: Setup instructions are clear"
+            ],
+            passes: true
+          });
+        }
+
+        // Check for CI/CD configuration
+        const hasCICD = topLevelDirs.includes('.github') ||
+                        topLevelFiles.includes('.gitlab-ci.yml') ||
+                        topLevelFiles.includes('.travis.yml');
+
+        if (hasCICD) {
+          detectedFeatures.push({
+            category: "DevOps",
+            description: "CI/CD pipeline configuration",
+            steps: [
+              "Step 1: CI config exists",
+              "Step 2: Pipeline runs on push",
+              "Step 3: Automated checks pass"
+            ],
+            passes: true
+          });
+        }
+
+        // Check for API routes (Next.js API or Express)
+        const hasAPIRoutes = allFilePaths.some(p =>
+          p.includes('/api/') ||
+          p.includes('/routes/') ||
+          p.includes('/endpoints/')
+        );
+
+        if (hasAPIRoutes) {
+          detectedFeatures.push({
+            category: "Backend",
+            description: "API endpoints",
+            steps: [
+              "Step 1: API routes are defined",
+              "Step 2: Endpoints respond correctly",
+              "Step 3: Error handling is implemented"
+            ],
+            passes: true
+          });
+        }
+
+        // Check for state management
+        const hasStateManagement = allFilePaths.some(p =>
+          p.includes('/store/') ||
+          p.includes('/stores/') ||
+          p.includes('/redux/') ||
+          p.includes('/context/')
+        );
+
+        if (hasStateManagement) {
+          detectedFeatures.push({
+            category: "Architecture",
+            description: "State management system",
+            steps: [
+              "Step 1: Store is configured",
+              "Step 2: State updates correctly",
+              "Step 3: Components access state"
+            ],
+            passes: true
+          });
+        }
+
+        // Check for configuration files
+        if (topLevelFiles.includes('tsconfig.json') || topLevelFiles.includes('package.json')) {
+          detectedFeatures.push({
+            category: "Configuration",
+            description: "Project configuration files",
+            steps: [
+              "Step 1: Config files exist",
+              "Step 2: Configuration is valid",
+              "Step 3: Build process works"
+            ],
+            passes: true
+          });
+        }
+      };
+
+      detectFeatures();
+
+      // If no features were detected, add a default feature
+      if (detectedFeatures.length === 0) {
+        detectedFeatures.push({
+          category: "Core",
+          description: "Basic project structure",
+          steps: [
+            "Step 1: Project directory exists",
+            "Step 2: Files are present",
+            "Step 3: Project can be loaded"
+          ],
+          passes: true
+        });
+      }
+
+      // Generate the feature list content
+      const featureListContent = JSON.stringify(detectedFeatures, null, 2);
+
+      // Write the feature list file
+      const featureListPath = `${currentProject.path}/feature_list.json`;
+      const writeResult = await api.writeFile(featureListPath, featureListContent);
+
+      if (writeResult.success) {
+        setFeatureListGenerated(true);
+      } else {
+        setFeatureListError(writeResult.error || 'Failed to write feature list file');
+      }
+    } catch (error) {
+      console.error('Failed to generate feature list:', error);
+      setFeatureListError(error instanceof Error ? error.message : 'Failed to generate feature list');
+    } finally {
+      setIsGeneratingFeatureList(false);
+    }
+  }, [currentProject, projectAnalysis]);
 
   // Toggle folder expansion
   const toggleFolder = (path: string) => {
@@ -212,11 +764,15 @@ export function AnalysisView() {
           )}
           <span className="truncate">{node.name}</span>
           {node.extension && (
-            <span className="text-xs text-muted-foreground ml-auto">.{node.extension}</span>
+            <span className="text-xs text-muted-foreground ml-auto">
+              .{node.extension}
+            </span>
           )}
         </div>
         {node.isDirectory && isExpanded && node.children && (
-          <div>{node.children.map((child) => renderNode(child, depth + 1))}</div>
+          <div>
+            {node.children.map((child) => renderNode(child, depth + 1))}
+          </div>
         )}
       </div>
     );
@@ -224,21 +780,29 @@ export function AnalysisView() {
 
   if (!currentProject) {
     return (
-      <div className="flex-1 flex items-center justify-center" data-testid="analysis-view-no-project">
+      <div
+        className="flex-1 flex items-center justify-center"
+        data-testid="analysis-view-no-project"
+      >
         <p className="text-muted-foreground">No project selected</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" data-testid="analysis-view">
+    <div
+      className="flex-1 flex flex-col overflow-hidden content-bg"
+      data-testid="analysis-view"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-zinc-950/50 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <Search className="w-5 h-5 text-muted-foreground" />
           <div>
             <h1 className="text-xl font-bold">Project Analysis</h1>
-            <p className="text-sm text-muted-foreground">{currentProject.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {currentProject.name}
+            </p>
           </div>
         </div>
         <Button
@@ -267,10 +831,13 @@ export function AnalysisView() {
             <Search className="w-16 h-16 text-muted-foreground/50 mb-4" />
             <h2 className="text-lg font-semibold mb-2">No Analysis Yet</h2>
             <p className="text-sm text-muted-foreground mb-4 max-w-md">
-              Click &quot;Analyze Project&quot; to scan your codebase and get insights about its
-              structure.
+              Click &quot;Analyze Project&quot; to scan your codebase and get
+              insights about its structure.
             </p>
-            <Button onClick={runAnalysis} data-testid="analyze-project-button-empty">
+            <Button
+              onClick={runAnalysis}
+              data-testid="analyze-project-button-empty"
+            >
               <Search className="w-4 h-4 mr-2" />
               Start Analysis
             </Button>
@@ -291,19 +858,27 @@ export function AnalysisView() {
                     Statistics
                   </CardTitle>
                   <CardDescription>
-                    Analyzed {new Date(projectAnalysis.analyzedAt).toLocaleString()}
+                    Analyzed{" "}
+                    {new Date(projectAnalysis.analyzedAt).toLocaleString()}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Total Files</span>
+                    <span className="text-sm text-muted-foreground">
+                      Total Files
+                    </span>
                     <span className="font-medium" data-testid="total-files">
                       {projectAnalysis.totalFiles}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Total Directories</span>
-                    <span className="font-medium" data-testid="total-directories">
+                    <span className="text-sm text-muted-foreground">
+                      Total Directories
+                    </span>
+                    <span
+                      className="font-medium"
+                      data-testid="total-directories"
+                    >
                       {projectAnalysis.totalDirectories}
                     </span>
                   </div>
@@ -333,6 +908,102 @@ export function AnalysisView() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Generate Spec Card */}
+              <Card data-testid="generate-spec-card">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Generate Specification
+                  </CardTitle>
+                  <CardDescription>
+                    Create app_spec.txt from analysis
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Generate a project specification file based on the analyzed codebase structure and detected technologies.
+                  </p>
+                  <Button
+                    onClick={generateSpec}
+                    disabled={isGeneratingSpec}
+                    className="w-full"
+                    data-testid="generate-spec-button"
+                  >
+                    {isGeneratingSpec ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Generate Spec
+                      </>
+                    )}
+                  </Button>
+                  {specGenerated && (
+                    <div className="flex items-center gap-2 text-sm text-green-500" data-testid="spec-generated-success">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>app_spec.txt created successfully!</span>
+                    </div>
+                  )}
+                  {specError && (
+                    <div className="flex items-center gap-2 text-sm text-red-500" data-testid="spec-generated-error">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{specError}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Generate Feature List Card */}
+              <Card data-testid="generate-feature-list-card">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <ListChecks className="w-4 h-4" />
+                    Generate Feature List
+                  </CardTitle>
+                  <CardDescription>
+                    Create feature_list.json from analysis
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Automatically detect and generate a feature list based on the analyzed codebase structure, dependencies, and project configuration.
+                  </p>
+                  <Button
+                    onClick={generateFeatureList}
+                    disabled={isGeneratingFeatureList}
+                    className="w-full"
+                    data-testid="generate-feature-list-button"
+                  >
+                    {isGeneratingFeatureList ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <ListChecks className="w-4 h-4 mr-2" />
+                        Generate Feature List
+                      </>
+                    )}
+                  </Button>
+                  {featureListGenerated && (
+                    <div className="flex items-center gap-2 text-sm text-green-500" data-testid="feature-list-generated-success">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>feature_list.json created successfully!</span>
+                    </div>
+                  )}
+                  {featureListError && (
+                    <div className="flex items-center gap-2 text-sm text-red-500" data-testid="feature-list-generated-error">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>{featureListError}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
             {/* File Tree */}
@@ -343,11 +1014,14 @@ export function AnalysisView() {
                   File Tree
                 </CardTitle>
                 <CardDescription>
-                  {projectAnalysis.totalFiles} files in {projectAnalysis.totalDirectories}{" "}
-                  directories
+                  {projectAnalysis.totalFiles} files in{" "}
+                  {projectAnalysis.totalDirectories} directories
                 </CardDescription>
               </CardHeader>
-              <CardContent className="p-0 overflow-y-auto h-full" data-testid="analysis-file-tree">
+              <CardContent
+                className="p-0 overflow-y-auto h-full"
+                data-testid="analysis-file-tree"
+              >
                 <div className="p-2">
                   {projectAnalysis.fileTree.map((node) => renderNode(node))}
                 </div>

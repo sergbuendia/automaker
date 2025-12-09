@@ -2,7 +2,13 @@
 
 import { useState, useCallback } from "react";
 import { useAppStore } from "@/store/app-store";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,7 +53,9 @@ export function AgentToolsView() {
   // Write File Tool State
   const [writeFilePath, setWriteFilePath] = useState("");
   const [writeFileContent, setWriteFileContent] = useState("");
-  const [writeFileResult, setWriteFileResult] = useState<ToolResult | null>(null);
+  const [writeFileResult, setWriteFileResult] = useState<ToolResult | null>(
+    null
+  );
   const [isWritingFile, setIsWritingFile] = useState(false);
 
   // Terminal Tool State
@@ -147,18 +155,20 @@ export function AgentToolsView() {
       // In mock mode, simulate terminal output
       // In real Electron mode, this would use child_process
       const mockOutputs: Record<string, string> = {
-        "ls": "app_spec.txt\nfeature_list.json\nnode_modules\npackage.json\nsrc\ntests\ntsconfig.json",
-        "pwd": currentProject?.path || "/Users/demo/project",
+        ls: "app_spec.txt\nfeature_list.json\nnode_modules\npackage.json\nsrc\ntests\ntsconfig.json",
+        pwd: currentProject?.path || "/Users/demo/project",
         "echo hello": "hello",
-        "whoami": "automaker-agent",
-        "date": new Date().toString(),
-        "cat package.json": '{\n  "name": "demo-project",\n  "version": "1.0.0"\n}',
+        whoami: "automaker-agent",
+        date: new Date().toString(),
+        "cat package.json":
+          '{\n  "name": "demo-project",\n  "version": "1.0.0"\n}',
       };
 
       // Simulate command execution delay
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const output = mockOutputs[terminalCommand.toLowerCase()] ||
+      const output =
+        mockOutputs[terminalCommand.toLowerCase()] ||
         `Command executed: ${terminalCommand}\n(Mock output - real execution requires Electron mode)`;
 
       setTerminalResult({
@@ -166,7 +176,9 @@ export function AgentToolsView() {
         output: output,
         timestamp: new Date(),
       });
-      console.log(`[Agent Tool] Command executed successfully: ${terminalCommand}`);
+      console.log(
+        `[Agent Tool] Command executed successfully: ${terminalCommand}`
+      );
     } catch (error) {
       setTerminalResult({
         success: false,
@@ -180,7 +192,10 @@ export function AgentToolsView() {
 
   if (!currentProject) {
     return (
-      <div className="flex-1 flex items-center justify-center" data-testid="agent-tools-no-project">
+      <div
+        className="flex-1 flex items-center justify-center"
+        data-testid="agent-tools-no-project"
+      >
         <div className="text-center">
           <Wrench className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">No Project Selected</h2>
@@ -193,9 +208,12 @@ export function AgentToolsView() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" data-testid="agent-tools-view">
+    <div
+      className="flex-1 flex flex-col overflow-hidden content-bg"
+      data-testid="agent-tools-view"
+    >
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b">
+      <div className="flex items-center gap-3 p-4 border-b border-white/10 bg-zinc-950/50 backdrop-blur-md">
         <Wrench className="w-5 h-5 text-primary" />
         <div>
           <h1 className="text-xl font-bold">Agent Tools</h1>
@@ -315,7 +333,11 @@ export function AgentToolsView() {
               </div>
               <Button
                 onClick={handleWriteFile}
-                disabled={isWritingFile || !writeFilePath.trim() || !writeFileContent.trim()}
+                disabled={
+                  isWritingFile ||
+                  !writeFilePath.trim() ||
+                  !writeFileContent.trim()
+                }
                 className="w-full"
                 data-testid="write-file-button"
               >
@@ -449,7 +471,8 @@ export function AgentToolsView() {
           <CardContent>
             <div className="space-y-2 text-sm">
               <p className="text-muted-foreground">
-                Open your browser&apos;s developer console to see detailed agent tool logs.
+                Open your browser&apos;s developer console to see detailed agent
+                tool logs.
               </p>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                 <li>Read File - Agent requests file content from filesystem</li>

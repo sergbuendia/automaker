@@ -264,4 +264,67 @@ test.describe("Kanban Board", () => {
     const plannedCard = plannedColumn.locator('[data-testid^="kanban-card-feature-0-"]');
     await expect(plannedCard).toBeVisible();
   });
+
+  test("displays delete button (trash icon) on feature card", async ({ page }) => {
+    await setupMockProject(page);
+    await page.goto("/");
+
+    // Wait for board to load
+    await expect(page.getByTestId("board-view")).toBeVisible();
+
+    // Wait for features to load in Backlog
+    const backlogColumn = page.getByTestId("kanban-column-backlog");
+    await expect(backlogColumn.getByText("Sample Feature")).toBeVisible();
+
+    // Find the delete button on the card
+    const deleteButton = backlogColumn.locator('[data-testid^="delete-feature-feature-0-"]');
+    await expect(deleteButton).toBeVisible();
+  });
+
+  test("can delete a feature from kanban board", async ({ page }) => {
+    await setupMockProject(page);
+    await page.goto("/");
+
+    // Wait for board to load
+    await expect(page.getByTestId("board-view")).toBeVisible();
+
+    // Wait for features to load in Backlog
+    const backlogColumn = page.getByTestId("kanban-column-backlog");
+    await expect(backlogColumn.getByText("Sample Feature")).toBeVisible();
+
+    // Find and click the delete button
+    const deleteButton = backlogColumn.locator('[data-testid^="delete-feature-feature-0-"]');
+    await deleteButton.click();
+
+    // Verify the feature is removed from the board
+    await expect(backlogColumn.getByText("Sample Feature")).not.toBeVisible();
+  });
+
+  test("deleting feature removes it from all columns", async ({ page }) => {
+    await setupMockProject(page);
+    await page.goto("/");
+
+    // Wait for board to load
+    await expect(page.getByTestId("board-view")).toBeVisible();
+
+    // Add a new feature first
+    await page.getByTestId("add-feature-button").click();
+    await page.getByTestId("feature-category-input").fill("Test Category");
+    await page.getByTestId("feature-description-input").fill("Feature to Delete");
+    await page.getByTestId("confirm-add-feature").click();
+
+    // Wait for the new feature to appear in backlog
+    const backlogColumn = page.getByTestId("kanban-column-backlog");
+    await expect(backlogColumn.getByText("Feature to Delete")).toBeVisible();
+
+    // Find and click the delete button for the newly added feature
+    const deleteButton = backlogColumn.locator('[data-testid^="delete-feature-feature-"]').last();
+    await deleteButton.click();
+
+    // Verify the feature is removed
+    await expect(backlogColumn.getByText("Feature to Delete")).not.toBeVisible();
+
+    // Also verify it's not anywhere else on the board
+    await expect(page.getByText("Feature to Delete")).not.toBeVisible();
+  });
 });

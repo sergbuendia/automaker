@@ -60,7 +60,10 @@ export function SpecView() {
 
   if (!currentProject) {
     return (
-      <div className="flex-1 flex items-center justify-center" data-testid="spec-view-no-project">
+      <div
+        className="flex-1 flex items-center justify-center"
+        data-testid="spec-view-no-project"
+      >
         <p className="text-muted-foreground">No project selected</p>
       </div>
     );
@@ -68,16 +71,22 @@ export function SpecView() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center" data-testid="spec-view-loading">
+      <div
+        className="flex-1 flex items-center justify-center"
+        data-testid="spec-view-loading"
+      >
         <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" data-testid="spec-view">
+    <div
+      className="flex-1 flex flex-col overflow-hidden content-bg"
+      data-testid="spec-view"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-zinc-950/50 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <FileText className="w-5 h-5 text-muted-foreground" />
           <div>

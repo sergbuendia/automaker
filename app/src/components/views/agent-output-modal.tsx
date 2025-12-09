@@ -1,0 +1,194 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
+import { getElectronAPI } from "@/lib/electron";
+
+interface AgentOutputModalProps {
+  open: boolean;
+  onClose: () => void;
+  featureDescription: string;
+  featureId: string;
+}
+
+export function AgentOutputModal({
+  open,
+  onClose,
+  featureDescription,
+  featureId,
+}: AgentOutputModalProps) {
+  const [output, setOutput] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const autoScrollRef = useRef(true);
+  const projectPathRef = useRef<string>("");
+
+  // Auto-scroll to bottom when output changes
+  useEffect(() => {
+    if (autoScrollRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [output]);
+
+  // Load existing output from file
+  useEffect(() => {
+    if (!open) return;
+
+    const loadOutput = async () => {
+      const api = getElectronAPI();
+      if (!api) return;
+
+      setIsLoading(true);
+
+      try {
+        // Get current project path from store (we'll need to pass this)
+        const currentProject = (window as any).__currentProject;
+        if (!currentProject?.path) {
+          setIsLoading(false);
+          return;
+        }
+
+        projectPathRef.current = currentProject.path;
+
+        // Ensure context directory exists
+        const contextDir = `${currentProject.path}/.automaker/context`;
+        await api.mkdir(contextDir);
+
+        // Try to read existing output file
+        const outputPath = `${contextDir}/${featureId}.md`;
+        const result = await api.readFile(outputPath);
+
+        if (result.success && result.content) {
+          setOutput(result.content);
+        } else {
+          setOutput("");
+        }
+      } catch (error) {
+        console.error("Failed to load output:", error);
+        setOutput("");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadOutput();
+  }, [open, featureId]);
+
+  // Save output to file
+  const saveOutput = async (newContent: string) => {
+    if (!projectPathRef.current) return;
+
+    const api = getElectronAPI();
+    if (!api) return;
+
+    try {
+      const contextDir = `${projectPathRef.current}/.automaker/context`;
+      const outputPath = `${contextDir}/${featureId}.md`;
+
+      await api.writeFile(outputPath, newContent);
+    } catch (error) {
+      console.error("Failed to save output:", error);
+    }
+  };
+
+  // Listen to auto mode events and update output
+  useEffect(() => {
+    if (!open) return;
+
+    const api = getElectronAPI();
+    if (!api?.autoMode) return;
+
+    const unsubscribe = api.autoMode.onEvent((event) => {
+      let newContent = "";
+
+      if (event.type === "auto_mode_progress") {
+        newContent = event.content || "";
+      } else if (event.type === "auto_mode_tool") {
+        const toolName = event.tool || "Unknown Tool";
+        const toolInput = event.input
+          ? JSON.stringify(event.input, null, 2)
+          : "";
+        newContent = `\n🔧 Tool: ${toolName}\n${toolInput ? `Input: ${toolInput}` : ""}`;
+      } else if (event.type === "auto_mode_phase") {
+        const phaseEmoji = event.phase === "planning" ? "📋" : event.phase === "action" ? "⚡" : "✅";
+        newContent = `\n${phaseEmoji} ${event.message}\n`;
+      } else if (event.type === "auto_mode_error") {
+        newContent = `\n❌ Error: ${event.error}\n`;
+      } else if (event.type === "auto_mode_feature_complete") {
+        const emoji = event.passes ? "✅" : "⚠️";
+        newContent = `\n${emoji} Task completed: ${event.message}\n`;
+      }
+
+      if (newContent) {
+        setOutput((prev) => {
+          const updated = prev + newContent;
+          saveOutput(updated);
+          return updated;
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [open, featureId]);
+
+  // Handle scroll to detect if user scrolled up
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    autoScrollRef.current = isAtBottom;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
+            Agent Output
+          </DialogTitle>
+          <DialogDescription className="mt-1">
+            {featureDescription}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto bg-zinc-950 rounded-lg p-4 font-mono text-sm min-h-[400px] max-h-[60vh]"
+        >
+          {isLoading && !output ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" />
+              Loading output...
+            </div>
+          ) : !output ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              No output yet. The agent will stream output here as it works.
+            </div>
+          ) : (
+            <div className="whitespace-pre-wrap break-words text-zinc-300">
+              {output}
+            </div>
+          )}
+        </div>
+
+        <div className="text-xs text-muted-foreground text-center">
+          {autoScrollRef.current
+            ? "Auto-scrolling enabled"
+            : "Scroll to bottom to enable auto-scroll"}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

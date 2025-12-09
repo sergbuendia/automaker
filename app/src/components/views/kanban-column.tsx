@@ -12,20 +12,26 @@ interface KanbanColumnProps {
   children: ReactNode;
 }
 
-export function KanbanColumn({ id, title, color, count, children }: KanbanColumnProps) {
+export function KanbanColumn({
+  id,
+  title,
+  color,
+  count,
+  children,
+}: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col w-72 h-full rounded-lg bg-muted/50 transition-colors",
-        isOver && "bg-muted"
+        "flex flex-col w-72 h-full rounded-lg bg-zinc-900/50 backdrop-blur-sm border border-white/5 transition-colors",
+        isOver && "bg-zinc-800/50"
       )}
       data-testid={`kanban-column-${id}`}
     >
       {/* Column Header */}
-      <div className="flex items-center gap-2 p-3 border-b border-border">
+      <div className="flex items-center gap-2 p-3 border-b border-white/5">
         <div className={cn("w-3 h-3 rounded-full", color)} />
         <h3 className="font-medium text-sm flex-1">{title}</h3>
         <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">

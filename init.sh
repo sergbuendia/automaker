@@ -24,7 +24,7 @@ npx playwright install chromium 2>/dev/null || true
 
 # Kill any process on port 3000
 echo "Checking port 3000..."
-lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+lsof -ti:3007 | xargs kill -9 2>/dev/null || true
 
 # Start the dev server
 echo "Starting Next.js development server..."

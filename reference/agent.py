@@ -200,7 +200,7 @@ async def run_autonomous_agent(
     print("  ./init.sh           # Run the setup script")
     print("  # Or manually:")
     print("  npm install && npm run dev")
-    print("\n  Then open http://localhost:3000 (or check init.sh for the URL)")
+    print("\n  Then open http://localhost:3007 (or check init.sh for the URL)")
     print("-" * 70)
 
     print("\nDone!")

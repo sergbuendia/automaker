@@ -241,7 +241,7 @@ def main():
         "git add . && git commit -m 'msg'",
         # Process management
         "ps aux",
-        "lsof -i :3000",
+        "lsof -i :3007",
         "sleep 2",
         # Allowed pkill patterns for dev servers
         "pkill node",

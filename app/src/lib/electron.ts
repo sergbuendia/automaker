@@ -41,6 +41,31 @@ export interface StatResult {
   error?: string;
 }
 
+// Auto Mode types
+export type AutoModePhase = "planning" | "action" | "verification";
+
+export interface AutoModeEvent {
+  type: "auto_mode_feature_start" | "auto_mode_progress" | "auto_mode_tool" | "auto_mode_feature_complete" | "auto_mode_error" | "auto_mode_complete" | "auto_mode_phase";
+  featureId?: string;
+  feature?: object;
+  content?: string;
+  tool?: string;
+  input?: unknown;
+  passes?: boolean;
+  message?: string;
+  error?: string;
+  phase?: AutoModePhase;
+}
+
+export interface AutoModeAPI {
+  start: (projectPath: string) => Promise<{ success: boolean; error?: string }>;
+  stop: () => Promise<{ success: boolean; error?: string }>;
+  status: () => Promise<{ success: boolean; isRunning?: boolean; currentFeatureId?: string | null; error?: string }>;
+  runFeature: (projectPath: string, featureId: string) => Promise<{ success: boolean; passes?: boolean; error?: string }>;
+  verifyFeature: (projectPath: string, featureId: string) => Promise<{ success: boolean; passes?: boolean; error?: string }>;
+  onEvent: (callback: (event: AutoModeEvent) => void) => () => void;
+}
+
 export interface ElectronAPI {
   ping: () => Promise<string>;
   openDirectory: () => Promise<DialogResult>;
@@ -52,6 +77,7 @@ export interface ElectronAPI {
   exists: (filePath: string) => Promise<boolean>;
   stat: (filePath: string) => Promise<StatResult>;
   getPath: (name: string) => Promise<string>;
+  autoMode?: AutoModeAPI;
 }
 
 declare global {
@@ -254,8 +280,207 @@ export const getElectronAPI = (): ElectronAPI => {
       }
       return `/mock/${name}`;
     },
+
+    // Mock Auto Mode API
+    autoMode: createMockAutoModeAPI(),
   };
 };
+
+// Mock Auto Mode state and implementation
+let mockAutoModeRunning = false;
+let mockAutoModeCallbacks: ((event: AutoModeEvent) => void)[] = [];
+let mockAutoModeTimeout: NodeJS.Timeout | null = null;
+
+function createMockAutoModeAPI(): AutoModeAPI {
+  return {
+    start: async (projectPath: string) => {
+      if (mockAutoModeRunning) {
+        return { success: false, error: "Auto mode is already running" };
+      }
+
+      mockAutoModeRunning = true;
+
+      // Simulate auto mode with Plan-Act-Verify phases
+      simulateAutoModeLoop(projectPath);
+
+      return { success: true };
+    },
+
+    stop: async () => {
+      mockAutoModeRunning = false;
+      if (mockAutoModeTimeout) {
+        clearTimeout(mockAutoModeTimeout);
+        mockAutoModeTimeout = null;
+      }
+      return { success: true };
+    },
+
+    status: async () => {
+      return {
+        success: true,
+        isRunning: mockAutoModeRunning,
+        currentFeatureId: mockAutoModeRunning ? "feature-0" : null,
+      };
+    },
+
+    runFeature: async (projectPath: string, featureId: string) => {
+      if (mockAutoModeRunning) {
+        return { success: false, error: "Auto mode is already running" };
+      }
+
+      mockAutoModeRunning = true;
+      simulateAutoModeLoop(projectPath);
+
+      return { success: true, passes: true };
+    },
+
+    verifyFeature: async (projectPath: string, featureId: string) => {
+      if (mockAutoModeRunning) {
+        return { success: false, error: "Auto mode is already running" };
+      }
+
+      mockAutoModeRunning = true;
+      simulateAutoModeLoop(projectPath);
+
+      return { success: true, passes: true };
+    },
+
+    onEvent: (callback: (event: AutoModeEvent) => void) => {
+      mockAutoModeCallbacks.push(callback);
+      return () => {
+        mockAutoModeCallbacks = mockAutoModeCallbacks.filter(cb => cb !== callback);
+      };
+    },
+  };
+}
+
+function emitAutoModeEvent(event: AutoModeEvent) {
+  mockAutoModeCallbacks.forEach(cb => cb(event));
+}
+
+async function simulateAutoModeLoop(projectPath: string) {
+  const featureId = "feature-0";
+  const mockFeature = {
+    id: featureId,
+    category: "Core",
+    description: "Sample Feature",
+    steps: ["Step 1", "Step 2"],
+    passes: false,
+  };
+
+  // Start feature
+  emitAutoModeEvent({
+    type: "auto_mode_feature_start",
+    featureId,
+    feature: mockFeature,
+  });
+
+  await delay(300);
+  if (!mockAutoModeRunning) return;
+
+  // Phase 1: PLANNING
+  emitAutoModeEvent({
+    type: "auto_mode_phase",
+    featureId,
+    phase: "planning",
+    message: `Planning implementation for: ${mockFeature.description}`,
+  });
+
+  emitAutoModeEvent({
+    type: "auto_mode_progress",
+    featureId,
+    content: "Analyzing codebase structure and creating implementation plan...",
+  });
+
+  await delay(500);
+  if (!mockAutoModeRunning) return;
+
+  // Phase 2: ACTION
+  emitAutoModeEvent({
+    type: "auto_mode_phase",
+    featureId,
+    phase: "action",
+    message: `Executing implementation for: ${mockFeature.description}`,
+  });
+
+  emitAutoModeEvent({
+    type: "auto_mode_progress",
+    featureId,
+    content: "Starting code implementation...",
+  });
+
+  await delay(300);
+  if (!mockAutoModeRunning) return;
+
+  // Simulate tool use
+  emitAutoModeEvent({
+    type: "auto_mode_tool",
+    featureId,
+    tool: "Read",
+    input: { file: "package.json" },
+  });
+
+  await delay(300);
+  if (!mockAutoModeRunning) return;
+
+  emitAutoModeEvent({
+    type: "auto_mode_tool",
+    featureId,
+    tool: "Write",
+    input: { file: "src/feature.ts", content: "// Feature code" },
+  });
+
+  await delay(500);
+  if (!mockAutoModeRunning) return;
+
+  // Phase 3: VERIFICATION
+  emitAutoModeEvent({
+    type: "auto_mode_phase",
+    featureId,
+    phase: "verification",
+    message: `Verifying implementation for: ${mockFeature.description}`,
+  });
+
+  emitAutoModeEvent({
+    type: "auto_mode_progress",
+    featureId,
+    content: "Verifying implementation and checking test results...",
+  });
+
+  await delay(500);
+  if (!mockAutoModeRunning) return;
+
+  emitAutoModeEvent({
+    type: "auto_mode_progress",
+    featureId,
+    content: "✓ Verification successful: All tests passed",
+  });
+
+  // Feature complete
+  emitAutoModeEvent({
+    type: "auto_mode_feature_complete",
+    featureId,
+    passes: true,
+    message: "Feature implemented successfully",
+  });
+
+  await delay(300);
+  if (!mockAutoModeRunning) return;
+
+  // All features complete
+  emitAutoModeEvent({
+    type: "auto_mode_complete",
+    message: "All features completed!",
+  });
+
+  mockAutoModeRunning = false;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => {
+    mockAutoModeTimeout = setTimeout(resolve, ms);
+  });
+}
 
 // Utility functions for project management
 

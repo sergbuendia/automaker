@@ -62,7 +62,7 @@
         - Plans implementation steps
         - Writes functional code (backend, logic, state)
         - Writes tests
-        - Uses standard prompts (e.g. `@autonomous-coding/prompts/coding_prompt.md`) to ensure quality and consistency.
+        - Uses standard prompts (e.g. `.automaker/coding_prompt.md`) to ensure quality and consistency.
       - **The Designer (Gemini 3 Pro)**:
         - Receives UI requirements
         - Generates Tailwind classes and React components
@@ -79,7 +79,7 @@
 
     <extensibility>
       - Workflow Editor: Configure the agent loop (e.g., Plan -> Code -> Test -> Review)
-      - Prompt Manager: Edit system prompts for Architect and Designer. Defaults to using `@autonomous-coding/prompts/coding_prompt.md` as the base instruction set.
+      - Prompt Manager: Edit system prompts for Architect and Designer. Defaults to using `.automaker/coding_prompt.md` as the base instruction set.
       - Model Registry: Add/Configure different models (OpenAI, Groq, local LLMs)
       - Plugin System: Hooks for pre/post generation steps
     </extensibility>

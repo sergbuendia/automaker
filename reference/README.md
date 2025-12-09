@@ -15,12 +15,14 @@ pip install -r requirements.txt
 ```
 
 Verify your installations:
+
 ```bash
 claude --version  # Should be latest version
 pip show claude-code-sdk  # Check SDK is installed
 ```
 
 **API Key:** Set your Anthropic API key:
+
 ```bash
 export ANTHROPIC_API_KEY='your-api-key-here'
 ```
@@ -32,6 +34,7 @@ python autonomous_agent_demo.py --project-dir ./my_project
 ```
 
 For testing with limited iterations:
+
 ```bash
 python autonomous_agent_demo.py --project-dir ./my_project --max-iterations 3
 ```
@@ -123,15 +126,15 @@ npm install
 npm run dev
 ```
 
-The application will typically be available at `http://localhost:3000` or similar (check the agent's output or `init.sh` for the exact URL).
+The application will typically be available at `http://localhost:3007` or similar (check the agent's output or `init.sh` for the exact URL).
 
 ## Command Line Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--project-dir` | Directory for the project | `./autonomous_demo_project` |
-| `--max-iterations` | Max agent iterations | Unlimited |
-| `--model` | Claude model to use | `claude-sonnet-4-5-20250929` |
+| Option             | Description               | Default                      |
+| ------------------ | ------------------------- | ---------------------------- |
+| `--project-dir`    | Directory for the project | `./autonomous_demo_project`  |
+| `--max-iterations` | Max agent iterations      | Unlimited                    |
+| `--model`          | Claude model to use       | `claude-sonnet-4-5-20250929` |
 
 ## Customization
 

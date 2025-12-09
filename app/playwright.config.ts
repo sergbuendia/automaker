@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const port = process.env.TEST_PORT || 3007;
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
@@ -9,7 +11,7 @@ export default defineConfig({
   reporter: "html",
   timeout: 10000,
   use: {
-    baseURL: "http://localhost:3002",
+    baseURL: `http://localhost:${port}`,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -20,9 +22,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev -- -p 3002",
-    url: "http://localhost:3002",
+    command: `npx next dev -p ${port}`,
+    url: `http://localhost:${port}`,
     reuseExistingServer: !process.env.CI,
-    timeout: 60000,
+    timeout: 120000,
   },
 });

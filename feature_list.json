@@ -1,5 +1,6 @@
 [
   {
+    "id": "feat-001",
     "category": "Project Management",
     "description": "Initialize the Electron application shell",
     "steps": [
@@ -7,9 +8,10 @@
       "Step 2: Verify Next.js renderer process loads",
       "Step 3: Check IPC communication channel is established"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-002",
     "category": "Project Management",
     "description": "Create 'New Project' workflow",
     "steps": [
@@ -18,9 +20,10 @@
       "Step 3: Verify project folder is created",
       "Step 4: Verify initial config files are generated"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-003",
     "category": "Project Management",
     "description": "Interactive 'New Project' Interview",
     "steps": [
@@ -30,9 +33,10 @@
       "Step 4: Agent asks clarifying questions (e.g. 'What tech stack?')",
       "Step 5: Agent generates draft app_spec.txt based on conversation"
     ],
-    "passes": false
+    "status": "verified"
   },
   {
+    "id": "feat-004",
     "category": "Project Management",
     "description": "Open 'Existing Project' workflow",
     "steps": [
@@ -41,9 +45,10 @@
       "Step 3: Verify project loads into dashboard",
       "Step 4: Verify previous state is restored"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-005",
     "category": "Project Management",
     "description": "Project List Persistance",
     "steps": [
@@ -51,9 +56,10 @@
       "Step 2: Restart application",
       "Step 3: Verify 'Recent Projects' list is populated"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-006",
     "category": "Intelligent Analysis",
     "description": "Analyze codebase file structure",
     "steps": [
@@ -61,9 +67,10 @@
       "Step 2: Run 'Analyze Project'",
       "Step 3: Verify file tree is parsed correctly in memory"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-007",
     "category": "Intelligent Analysis",
     "description": "Generate app_spec.txt from existing code",
     "steps": [
@@ -72,9 +79,10 @@
       "Step 3: Verify app_spec.txt is created",
       "Step 4: Verify spec content accurately reflects codebase"
     ],
-    "passes": false
+    "status": "verified"
   },
   {
+    "id": "feat-008",
     "category": "Intelligent Analysis",
     "description": "Generate feature_list.json from existing code",
     "steps": [
@@ -83,9 +91,10 @@
       "Step 3: Verify feature_list.json is created",
       "Step 4: Verify existing features are marked 'passes': true"
     ],
-    "passes": false
+    "status": "verified"
   },
   {
+    "id": "feat-009",
     "category": "Kanban Board",
     "description": "Render Kanban columns",
     "steps": [
@@ -93,9 +102,10 @@
       "Step 2: Verify columns: Backlog, In Progress, Verified, Failed",
       "Step 3: Verify correct styling of columns"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-010",
     "category": "Kanban Board",
     "description": "Load cards from feature_list.json",
     "steps": [
@@ -103,9 +113,10 @@
       "Step 2: Open Board View",
       "Step 3: Verify cards appear in correct columns based on status"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-011",
     "category": "Kanban Board",
     "description": "Drag and drop cards",
     "steps": [
@@ -113,9 +124,10 @@
       "Step 2: Verify UI update",
       "Step 3: Verify feature_list.json file is updated on disk"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-012",
     "category": "Kanban Board",
     "description": "Edit card details",
     "steps": [
@@ -124,9 +136,10 @@
       "Step 3: Save",
       "Step 4: Verify updates in feature_list.json"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-013",
     "category": "Kanban Board",
     "description": "Add new feature card",
     "steps": [
@@ -135,9 +148,10 @@
       "Step 3: Verify card appears",
       "Step 4: Verify append to feature_list.json"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-014",
     "category": "Autonomous Agent",
     "description": "Integrate Claude 3.5 Opus SDK",
     "steps": [
@@ -145,9 +159,10 @@
       "Step 2: Send test prompt",
       "Step 3: Verify response received"
     ],
-    "passes": false
+    "status": "verified"
   },
   {
+    "id": "feat-015",
     "category": "Autonomous Agent",
     "description": "Integrate Gemini 3 Pro SDK",
     "steps": [
@@ -155,9 +170,10 @@
       "Step 2: Send image/design prompt",
       "Step 3: Verify response received"
     ],
-    "passes": false
+    "status": "verified"
   },
   {
+    "id": "feat-016",
     "category": "Autonomous Agent",
     "description": "Implement Agent Loop (Plan-Act-Verify)",
     "steps": [
@@ -166,9 +182,10 @@
       "Step 3: detailed logs show Action phase",
       "Step 4: detailed logs show Verification phase"
     ],
-    "passes": false
+    "status": "backlog"
   },
   {
+    "id": "feat-017",
     "category": "Autonomous Agent",
     "description": "Load Standard Coding Prompt",
     "steps": [
@@ -176,9 +193,10 @@
       "Step 2: Verify system prompt includes content from @autonomous-coding/prompts/coding_prompt.md",
       "Step 3: Verify agent adheres to prompt instructions (e.g. Playwright testing)"
     ],
-    "passes": false
+    "status": "backlog"
   },
   {
+    "id": "feat-018",
     "category": "Autonomous Agent",
     "description": "Agent can read file system",
     "steps": [
@@ -186,9 +204,10 @@
       "Step 2: System grants access",
       "Step 3: Agent receives content"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-019",
     "category": "Autonomous Agent",
     "description": "Agent can write file system",
     "steps": [
@@ -196,9 +215,10 @@
       "Step 2: System grants access",
       "Step 3: File is written to disk"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-020",
     "category": "Autonomous Agent",
     "description": "Agent can run terminal commands",
     "steps": [
@@ -206,9 +226,10 @@
       "Step 2: System executes command",
       "Step 3: Agent receives stdout"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-021",
     "category": "UI/Design",
     "description": "Implement Dark Mode",
     "steps": [
@@ -216,18 +237,20 @@
       "Step 2: Verify colors change to dark palette",
       "Step 3: Persist preference"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-022",
     "category": "UI/Design",
     "description": "Responsive Sidebar",
     "steps": [
       "Step 1: Resize window",
       "Step 2: Verify sidebar collapses/expands correctly"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-023",
     "category": "Settings",
     "description": "Manage API Keys",
     "steps": [
@@ -235,9 +258,10 @@
       "Step 2: Enter Anthropic/Google keys",
       "Step 3: Verify keys are saved securely (e.g. keytar or encrypted)"
     ],
-    "passes": true
+    "status": "verified"
   },
   {
+    "id": "feat-024",
     "category": "Extensibility",
     "description": "Custom Prompts Editor",
     "steps": [
@@ -246,9 +270,10 @@
       "Step 3: Create a new custom prompt override",
       "Step 4: Save and verify agent uses new prompt"
     ],
-    "passes": false
+    "status": "backlog"
   },
   {
+    "id": "feat-025",
     "category": "Developer Experience",
     "description": "Mock Electron for Web Dev",
     "steps": [
@@ -256,6 +281,41 @@
       "Step 2: Verify app loads in Chrome",
       "Step 3: Verify IPC calls return mock data"
     ],
-    "passes": true
+    "status": "verified"
+  },
+  {
+    "id": "feat-026",
+    "category": "Core",
+    "description": "Agent Chat side nav for chat windows",
+    "steps": [
+      "click agent chat",
+      "create new session",
+      "verify empty chat panel",
+      "all sessions show up in a left side nav bar"
+    ],
+    "status": "backlog"
+  },
+  {
+    "id": "feat-027",
+    "category": "delete features",
+    "description": "ability to delete a feature from kanban view",
+    "steps": [
+      "add trash icon to card",
+      "remove from feature_list.json if feture was there"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feat-028",
+    "category": ".automaker directory",
+    "description": "I need the .automaker to load .md files from the .automaker directory and be able to edit / configure them from herey",
+    "steps": [
+      "1. click the Promp Editor tab",
+      "2. view a list of the all .md files inside here",
+      "3. if coding_prompt.md is missing, create one by copying the coding_prompt.md from the prompts directory",
+      "4. the agent should use that coding_prompt.md when running, reload it each agent run as it could have changed",
+      ""
+    ],
+    "status": "backlog"
   }
 ]

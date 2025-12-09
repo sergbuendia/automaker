@@ -1,82 +1,300 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useAppStore } from "@/store/app-store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bot, Send, User, Loader2, Sparkles } from "lucide-react";
+import { ImageDropZone } from "@/components/ui/image-drop-zone";
+import {
+  Bot,
+  Send,
+  User,
+  Loader2,
+  Sparkles,
+  Wrench,
+  Trash2,
+  PanelLeftClose,
+  PanelLeft,
+  Paperclip,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-}
-
-let messageCounter = 0;
-const generateMessageId = () => `msg-${++messageCounter}`;
-
-const getAgentResponse = (userInput: string): string => {
-  const lowerInput = userInput.toLowerCase();
-
-  if (lowerInput.includes("todo") || lowerInput.includes("task")) {
-    return "I can help you build a todo application! Let me ask a few questions:\n\n1. What tech stack would you prefer? (React, Vue, plain JavaScript)\n2. Do you need user authentication?\n3. Should tasks be stored locally or in a database?\n\nPlease share your preferences and I'll create a detailed spec.";
-  }
-
-  if (lowerInput.includes("api") || lowerInput.includes("backend")) {
-    return "Great! For building an API, I'll need to know:\n\n1. What type of data will it handle?\n2. Do you need authentication?\n3. What database would you like to use? (PostgreSQL, MongoDB, SQLite)\n4. Should I generate OpenAPI documentation?\n\nShare your requirements and I'll design the architecture.";
-  }
-
-  if (lowerInput.includes("help") || lowerInput.includes("what can you do")) {
-    return "I can help you with:\n\n• **Project Planning** - Define your app specification and features\n• **Code Generation** - Write code based on your requirements\n• **Testing** - Create and run tests for your features\n• **Code Review** - Analyze and improve existing code\n\nJust describe what you want to build, and I'll guide you through the process!";
-  }
-
-  return `I understand you want to work on: "${userInput}"\n\nLet me analyze this and create a plan. In the full version, I would:\n\n1. Generate a detailed app_spec.txt\n2. Create feature_list.json with test cases\n3. Start implementing features one by one\n4. Run tests to verify each feature\n\nThis functionality requires API keys to be configured in Settings.`;
-};
+import { useElectronAgent } from "@/hooks/use-electron-agent";
+import { SessionManager } from "@/components/session-manager";
+import type { ImageAttachment } from "@/store/app-store";
 
 export function AgentView() {
   const { currentProject } = useAppStore();
-  const [messages, setMessages] = useState<Message[]>(() => [
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Hello! I'm the Automaker Agent. I can help you build software autonomously. What would you like to create today?",
-      timestamp: new Date(),
-    },
-  ]);
   const [input, setInput] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<ImageAttachment[]>([]);
+  const [showImageDropZone, setShowImageDropZone] = useState(false);
+  const [currentTool, setCurrentTool] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [showSessionManager, setShowSessionManager] = useState(true);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleSend = useCallback(() => {
-    if (!input.trim() || isProcessing) return;
+  // Scroll management for auto-scroll
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isUserAtBottom, setIsUserAtBottom] = useState(true);
 
-    const userMessage: Message = {
-      id: generateMessageId(),
-      role: "user",
-      content: input,
-      timestamp: new Date(),
-    };
-    const currentInput = input;
+  // Input ref for auto-focus
+  const inputRef = useRef<HTMLInputElement>(null);
 
-    setMessages((prev) => [...prev, userMessage]);
+  // Use the Electron agent hook (only if we have a session)
+  const {
+    messages,
+    isProcessing,
+    isConnected,
+    sendMessage,
+    clearHistory,
+    error: agentError,
+  } = useElectronAgent({
+    sessionId: currentSessionId || "",
+    workingDirectory: currentProject?.path,
+    onToolUse: (toolName) => {
+      setCurrentTool(toolName);
+      setTimeout(() => setCurrentTool(null), 2000);
+    },
+  });
+
+  const handleSend = useCallback(async () => {
+    if ((!input.trim() && selectedImages.length === 0) || isProcessing) return;
+
+    const messageContent = input;
+    const messageImages = selectedImages;
+
     setInput("");
-    setIsProcessing(true);
+    setSelectedImages([]);
+    setShowImageDropZone(false);
 
-    // Simulate agent response (in a real implementation, this would call the AI API)
-    setTimeout(() => {
-      const assistantMessage: Message = {
-        id: generateMessageId(),
-        role: "assistant",
-        content: getAgentResponse(currentInput),
-        timestamp: new Date(),
+    await sendMessage(messageContent, messageImages);
+  }, [input, selectedImages, isProcessing, sendMessage]);
+
+  const handleImagesSelected = useCallback((images: ImageAttachment[]) => {
+    setSelectedImages(images);
+  }, []);
+
+  const toggleImageDropZone = useCallback(() => {
+    setShowImageDropZone(!showImageDropZone);
+  }, [showImageDropZone]);
+
+  // Helper function to convert file to base64
+  const fileToBase64 = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Failed to read file as base64"));
+        }
       };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsProcessing(false);
-    }, 1500);
-  }, [input, isProcessing]);
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  // Process dropped files
+  const processDroppedFiles = useCallback(
+    async (files: FileList) => {
+      if (isProcessing) return;
+
+      const ACCEPTED_IMAGE_TYPES = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      const MAX_FILES = 5;
+
+      const newImages: ImageAttachment[] = [];
+      const errors: string[] = [];
+
+      for (const file of Array.from(files)) {
+        // Validate file type
+        if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+          errors.push(
+            `${file.name}: Unsupported file type. Please use JPG, PNG, GIF, or WebP.`
+          );
+          continue;
+        }
+
+        // Validate file size
+        if (file.size > MAX_FILE_SIZE) {
+          const maxSizeMB = MAX_FILE_SIZE / (1024 * 1024);
+          errors.push(
+            `${file.name}: File too large. Maximum size is ${maxSizeMB}MB.`
+          );
+          continue;
+        }
+
+        // Check if we've reached max files
+        if (newImages.length + selectedImages.length >= MAX_FILES) {
+          errors.push(`Maximum ${MAX_FILES} images allowed.`);
+          break;
+        }
+
+        try {
+          const base64 = await fileToBase64(file);
+          const imageAttachment: ImageAttachment = {
+            id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            data: base64,
+            mimeType: file.type,
+            filename: file.name,
+            size: file.size,
+          };
+          newImages.push(imageAttachment);
+        } catch (error) {
+          errors.push(`${file.name}: Failed to process image.`);
+        }
+      }
+
+      if (errors.length > 0) {
+        console.warn("Image upload errors:", errors);
+      }
+
+      if (newImages.length > 0) {
+        setSelectedImages((prev) => [...prev, ...newImages]);
+      }
+    },
+    [isProcessing, selectedImages, fileToBase64]
+  );
+
+  // Remove individual image
+  const removeImage = useCallback((imageId: string) => {
+    setSelectedImages((prev) => prev.filter((img) => img.id !== imageId));
+  }, []);
+
+  // Drag and drop handlers for the input area
+  const handleDragEnter = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isProcessing || !isConnected) return;
+
+      console.log(
+        "[agent-view] Drag enter types:",
+        Array.from(e.dataTransfer.types)
+      );
+
+      // Check if dragged items contain files
+      if (e.dataTransfer.types.includes("Files")) {
+        setIsDragOver(true);
+      }
+    },
+    [isProcessing, isConnected]
+  );
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Only set dragOver to false if we're leaving the input container
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+
+      if (isProcessing || !isConnected) return;
+
+      console.log("[agent-view] Drop event:", {
+        filesCount: e.dataTransfer.files.length,
+        itemsCount: e.dataTransfer.items.length,
+        types: Array.from(e.dataTransfer.types),
+      });
+
+      // Check if we have files
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        console.log("[agent-view] Processing files from dataTransfer.files");
+        processDroppedFiles(files);
+        return;
+      }
+
+      // Handle file paths (from screenshots or other sources)
+      // This is common on macOS when dragging screenshots
+      const items = e.dataTransfer.items;
+      if (items && items.length > 0) {
+        console.log("[agent-view] Processing items");
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          console.log(`[agent-view] Item ${i}:`, {
+            kind: item.kind,
+            type: item.type,
+          });
+          if (item.kind === "file") {
+            const file = item.getAsFile();
+            if (file) {
+              console.log("[agent-view] Got file from item:", {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+              });
+              const dataTransfer = new DataTransfer();
+              dataTransfer.items.add(file);
+              processDroppedFiles(dataTransfer.files);
+            }
+          }
+        }
+      }
+    },
+    [isProcessing, isConnected, processDroppedFiles]
+  );
+
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent) => {
+      // Check if clipboard contains files
+      const items = e.clipboardData?.items;
+      if (items) {
+        const files: File[] = [];
+
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          console.log("[agent-view] Paste item:", {
+            kind: item.kind,
+            type: item.type,
+          });
+
+          if (item.kind === "file") {
+            const file = item.getAsFile();
+            if (file && file.type.startsWith("image/")) {
+              e.preventDefault(); // Prevent default paste of file path
+              files.push(file);
+            }
+          }
+        }
+
+        if (files.length > 0) {
+          console.log(
+            "[agent-view] Processing pasted image files:",
+            files.length
+          );
+          const dataTransfer = new DataTransfer();
+          files.forEach((file) => dataTransfer.items.add(file));
+          await processDroppedFiles(dataTransfer.files);
+        }
+      }
+    },
+    [processDroppedFiles]
+  );
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -85,9 +303,78 @@ export function AgentView() {
     }
   };
 
+  const handleClearChat = async () => {
+    if (!confirm("Are you sure you want to clear this conversation?")) return;
+    await clearHistory();
+  };
+
+  // Scroll position detection
+  const checkIfUserIsAtBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const threshold = 50; // 50px threshold for "near bottom"
+    const isAtBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight <=
+      threshold;
+
+    setIsUserAtBottom(isAtBottom);
+  }, []);
+
+  // Scroll to bottom function
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: behavior,
+    });
+  }, []);
+
+  // Handle scroll events
+  const handleScroll = useCallback(() => {
+    checkIfUserIsAtBottom();
+  }, [checkIfUserIsAtBottom]);
+
+  // Auto-scroll effect when messages change
+  useEffect(() => {
+    // Only auto-scroll if user was already at bottom
+    if (isUserAtBottom && messages.length > 0) {
+      // Use a small delay to ensure DOM is updated
+      setTimeout(() => {
+        scrollToBottom("smooth");
+      }, 100);
+    }
+  }, [messages, isUserAtBottom, scrollToBottom]);
+
+  // Initial scroll to bottom when session changes
+  useEffect(() => {
+    if (currentSessionId && messages.length > 0) {
+      // Scroll immediately without animation when switching sessions
+      setTimeout(() => {
+        scrollToBottom("auto");
+        setIsUserAtBottom(true);
+      }, 100);
+    }
+  }, [currentSessionId, scrollToBottom]);
+
+  // Auto-focus input when session is selected/changed
+  useEffect(() => {
+    if (currentSessionId && inputRef.current) {
+      // Small delay to ensure UI has updated
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 200);
+    }
+  }, [currentSessionId]);
+
   if (!currentProject) {
     return (
-      <div className="flex-1 flex items-center justify-center" data-testid="agent-view-no-project">
+      <div
+        className="flex-1 flex items-center justify-center"
+        data-testid="agent-view-no-project"
+      >
         <div className="text-center">
           <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">No Project Selected</h2>
@@ -99,101 +386,336 @@ export function AgentView() {
     );
   }
 
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden" data-testid="agent-view">
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b">
-        <Bot className="w-5 h-5 text-primary" />
-        <div>
-          <h1 className="text-xl font-bold">AI Agent</h1>
-          <p className="text-sm text-muted-foreground">
-            Autonomous development assistant for {currentProject.name}
-          </p>
-        </div>
-      </div>
+  // Show welcome message if no messages yet
+  const displayMessages =
+    messages.length === 0
+      ? [
+          {
+            id: "welcome",
+            role: "assistant" as const,
+            content:
+              "Hello! I'm the Automaker Agent. I can help you build software autonomously. I can read and modify files in this project, run commands, and execute tests. What would you like to create today?",
+            timestamp: new Date().toISOString(),
+          },
+        ]
+      : messages;
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="message-list">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              "flex gap-3",
-              message.role === "user" && "flex-row-reverse"
-            )}
-          >
-            <div
-              className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                message.role === "assistant" ? "bg-primary/10" : "bg-muted"
-              )}
+  return (
+    <div
+      className="flex-1 flex overflow-hidden content-bg"
+      data-testid="agent-view"
+    >
+      {/* Session Manager Sidebar */}
+      {showSessionManager && currentProject && (
+        <div className="w-80 border-r flex-shrink-0">
+          <SessionManager
+            currentSessionId={currentSessionId}
+            onSelectSession={setCurrentSessionId}
+            projectPath={currentProject.path}
+            isCurrentSessionThinking={isProcessing}
+          />
+        </div>
+      )}
+
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-zinc-950/50 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSessionManager(!showSessionManager)}
+              className="h-8 w-8 p-0"
             >
-              {message.role === "assistant" ? (
-                <Bot className="w-4 h-4 text-primary" />
+              {showSessionManager ? (
+                <PanelLeftClose className="w-4 h-4" />
               ) : (
-                <User className="w-4 h-4" />
+                <PanelLeft className="w-4 h-4" />
               )}
+            </Button>
+            <Bot className="w-5 h-5 text-primary" />
+            <div>
+              <h1 className="text-xl font-bold">AI Agent</h1>
+              <p className="text-sm text-muted-foreground">
+                {currentProject.name}
+                {currentSessionId && !isConnected && " · Connecting..."}
+              </p>
             </div>
-            <Card
-              className={cn(
-                "max-w-[80%]",
-                message.role === "user" && "bg-primary text-primary-foreground"
-              )}
-            >
-              <CardContent className="p-3">
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                <p
+          </div>
+
+          {/* Status indicators & actions */}
+          <div className="flex items-center gap-2">
+            {currentTool && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                <Wrench className="w-3 h-3" />
+                <span>{currentTool}</span>
+              </div>
+            )}
+            {agentError && (
+              <span className="text-xs text-destructive">{agentError}</span>
+            )}
+            {currentSessionId && messages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearChat}
+                disabled={isProcessing}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Messages */}
+        {!currentSessionId ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Bot className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h2 className="text-lg font-semibold mb-2">
+                No Session Selected
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Create or select a session to start chatting
+              </p>
+              <Button
+                onClick={() => setShowSessionManager(true)}
+                variant="outline"
+              >
+                <PanelLeft className="w-4 h-4 mr-2" />
+                {showSessionManager ? "View" : "Show"} Sessions
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto p-4 space-y-4"
+            data-testid="message-list"
+            onScroll={handleScroll}
+          >
+            {displayMessages.map((message) => (
+              <div
+                key={message.id}
+                className={cn(
+                  "flex gap-3",
+                  message.role === "user" && "flex-row-reverse"
+                )}
+              >
+                <div
                   className={cn(
-                    "text-xs mt-2",
-                    message.role === "user"
-                      ? "text-primary-foreground/70"
-                      : "text-muted-foreground"
+                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+                    message.role === "assistant" ? "bg-primary/10" : "bg-muted"
                   )}
                 >
-                  {message.timestamp.toLocaleTimeString()}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        ))}
-
-        {isProcessing && (
-          <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-primary" />
-            </div>
-            <Card>
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm text-muted-foreground">Thinking...</span>
+                  {message.role === "assistant" ? (
+                    <Bot className="w-4 h-4 text-primary" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
                 </div>
-              </CardContent>
-            </Card>
+                <Card
+                  className={cn(
+                    "max-w-[80%]",
+                    message.role === "user" &&
+                      "bg-primary text-primary-foreground"
+                  )}
+                >
+                  <CardContent className="p-3">
+                    <p className="text-sm whitespace-pre-wrap">
+                      {message.content}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-xs mt-2",
+                        message.role === "user"
+                          ? "text-primary-foreground/70"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+
+            {isProcessing && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-primary" />
+                </div>
+                <Card>
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm text-muted-foreground">
+                        Thinking...
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Input */}
+        {currentSessionId && (
+          <div className="border-t p-4 space-y-3">
+            {/* Image Drop Zone (when visible) */}
+            {showImageDropZone && (
+              <ImageDropZone
+                onImagesSelected={handleImagesSelected}
+                maxFiles={5}
+                className="mb-3"
+                disabled={isProcessing || !isConnected}
+              />
+            )}
+
+            {/* Text Input and Controls - with drag and drop support */}
+            <div
+              className={cn(
+                "flex gap-2 transition-all duration-200 rounded-lg",
+                isDragOver &&
+                  "bg-blue-50 dark:bg-blue-950/20 ring-2 ring-blue-400 ring-offset-2"
+              )}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              <div className="flex-1 relative">
+                <Input
+                  ref={inputRef}
+                  placeholder={
+                    isDragOver
+                      ? "Drop your images here..."
+                      : "Describe what you want to build..."
+                  }
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  onPaste={handlePaste}
+                  disabled={isProcessing || !isConnected}
+                  data-testid="agent-input"
+                  className={cn(
+                    selectedImages.length > 0 &&
+                      "border-blue-200 bg-blue-50/50 dark:bg-blue-950/20",
+                    isDragOver &&
+                      "border-blue-400 bg-blue-50/50 dark:bg-blue-950/20"
+                  )}
+                />
+                {selectedImages.length > 0 && !isDragOver && (
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-blue-600 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">
+                    {selectedImages.length} image
+                    {selectedImages.length > 1 ? "s" : ""}
+                  </div>
+                )}
+                {isDragOver && (
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-blue-600 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded flex items-center gap-1">
+                    <Paperclip className="w-3 h-3" />
+                    Drop here
+                  </div>
+                )}
+              </div>
+
+              {/* Image Attachment Button */}
+              <Button
+                variant="outline"
+                size="default"
+                onClick={toggleImageDropZone}
+                disabled={isProcessing || !isConnected}
+                className={cn(
+                  showImageDropZone &&
+                    "bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400",
+                  selectedImages.length > 0 && "border-blue-400"
+                )}
+                title="Attach images"
+              >
+                <Paperclip className="w-4 h-4" />
+              </Button>
+
+              {/* Send Button */}
+              <Button
+                onClick={handleSend}
+                disabled={
+                  (!input.trim() && selectedImages.length === 0) ||
+                  isProcessing ||
+                  !isConnected
+                }
+                data-testid="send-message"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Selected Images Preview */}
+            {selectedImages.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-foreground">
+                    {selectedImages.length} image
+                    {selectedImages.length > 1 ? "s" : ""} attached
+                  </p>
+                  <button
+                    onClick={() => setSelectedImages([])}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                    disabled={isProcessing}
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedImages.map((image) => (
+                    <div
+                      key={image.id}
+                      className="relative group rounded-md border border-muted bg-muted/50 p-2 flex items-center space-x-2"
+                    >
+                      {/* Image thumbnail */}
+                      <div className="w-8 h-8 rounded overflow-hidden bg-muted flex-shrink-0">
+                        <img
+                          src={image.data}
+                          alt={image.filename}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      {/* Image info */}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground truncate">
+                          {image.filename}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(image.size)}
+                        </p>
+                      </div>
+                      {/* Remove button */}
+                      <button
+                        onClick={() => removeImage(image.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-destructive hover:text-destructive-foreground text-muted-foreground"
+                        disabled={isProcessing}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* Input */}
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Describe what you want to build..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={isProcessing}
-            data-testid="agent-input"
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isProcessing}
-            data-testid="send-message"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
     </div>
   );
+}
+
+// Helper function to format file size
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }

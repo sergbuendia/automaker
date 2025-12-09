@@ -1,0 +1,262 @@
+[
+  {
+    "id": "feature-0-1765245545601",
+    "category": "Project Management",
+    "description": "Initialize the Electron application shell",
+    "steps": [
+      "Step 1: Verify Electron main process starts",
+      "Step 2: Verify Next.js renderer process loads",
+      "Step 3: Check IPC communication channel is established"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-1-1765245545601",
+    "category": "Project Management",
+    "description": "Create 'New Project' workflow",
+    "steps": [
+      "Step 1: Click 'New Project' button",
+      "Step 2: Enter project name and select directory",
+      "Step 3: Verify project folder is created",
+      "Step 4: Verify initial config files are generated"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-2-1765245545601",
+    "category": "Project Management",
+    "description": "Interactive 'New Project' Interview",
+    "steps": [
+      "Step 1: Click 'New Project' -> 'Interactive Mode'",
+      "Step 2: Chat interface appears asking 'What do you want to build?'",
+      "Step 3: User replies 'A todo app'",
+      "Step 4: Agent asks clarifying questions (e.g. 'What tech stack?')",
+      "Step 5: Agent generates draft app_spec.txt based on conversation"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-3-1765245545601",
+    "category": "Project Management",
+    "description": "Open 'Existing Project' workflow",
+    "steps": [
+      "Step 1: Click 'Open Project'",
+      "Step 2: Use native file dialog to select folder",
+      "Step 3: Verify project loads into dashboard",
+      "Step 4: Verify previous state is restored"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-4-1765245545601",
+    "category": "Project Management",
+    "description": "Project List Persistance",
+    "steps": [
+      "Step 1: Open multiple projects",
+      "Step 2: Restart application",
+      "Step 3: Verify 'Recent Projects' list is populated"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-5-1765245545601",
+    "category": "Intelligent Analysis",
+    "description": "Analyze codebase file structure",
+    "steps": [
+      "Step 1: Point to a reference codebase",
+      "Step 2: Run 'Analyze Project'",
+      "Step 3: Verify file tree is parsed correctly in memory"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-6-1765245545601",
+    "category": "Intelligent Analysis",
+    "description": "Generate app_spec.txt from existing code",
+    "steps": [
+      "Step 1: Open project with code but no spec",
+      "Step 2: Trigger 'Generate Spec'",
+      "Step 3: Verify app_spec.txt is created",
+      "Step 4: Verify spec content accurately reflects codebase"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-7-1765245545601",
+    "category": "Intelligent Analysis",
+    "description": "Generate feature_list.json from existing code",
+    "steps": [
+      "Step 1: Open project with implemented features",
+      "Step 2: Trigger 'Generate Feature List'",
+      "Step 3: Verify feature_list.json is created",
+      "Step 4: Verify existing features are marked 'passes': true"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-8-1765245545601",
+    "category": "Kanban Board",
+    "description": "Render Kanban columns",
+    "steps": [
+      "Step 1: Open Board View",
+      "Step 2: Verify columns: Backlog, In Progress, Verified, Failed",
+      "Step 3: Verify correct styling of columns"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-9-1765245545601",
+    "category": "Kanban Board",
+    "description": "Load cards from feature_list.json",
+    "steps": [
+      "Step 1: Ensure feature_list.json has data",
+      "Step 2: Open Board View",
+      "Step 3: Verify cards appear in correct columns based on status"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-10-1765245545601",
+    "category": "Kanban Board",
+    "description": "Drag and drop cards",
+    "steps": [
+      "Step 1: Drag card from Backlog to In Progress",
+      "Step 2: Verify UI update",
+      "Step 3: Verify feature_list.json file is updated on disk"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-11-1765245545601",
+    "category": "Kanban Board",
+    "description": "Edit card details",
+    "steps": [
+      "Step 1: Click on a card",
+      "Step 2: Edit description and steps",
+      "Step 3: Save",
+      "Step 4: Verify updates in feature_list.json"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-12-1765245545601",
+    "category": "Kanban Board",
+    "description": "Add new feature card",
+    "steps": [
+      "Step 1: Click 'Add Feature' in Backlog",
+      "Step 2: Enter details",
+      "Step 3: Verify card appears",
+      "Step 4: Verify append to feature_list.json"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-13-1765245545601",
+    "category": "Autonomous Agent",
+    "description": "Integrate Claude 3.5 Opus SDK",
+    "steps": [
+      "Step 1: Configure API Key",
+      "Step 2: Send test prompt",
+      "Step 3: Verify response received"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-14-1765245545601",
+    "category": "Autonomous Agent",
+    "description": "Integrate Gemini 3 Pro SDK",
+    "steps": [
+      "Step 1: Configure Gemini API Key",
+      "Step 2: Send image/design prompt",
+      "Step 3: Verify response received"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-15-1765245545601",
+    "category": "Autonomous Agent",
+    "description": "Agent can read file system",
+    "steps": [
+      "Step 1: Agent requests to read file",
+      "Step 2: System grants access",
+      "Step 3: Agent receives content"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-16-1765245545601",
+    "category": "Autonomous Agent",
+    "description": "Agent can write file system",
+    "steps": [
+      "Step 1: Agent requests to write file",
+      "Step 2: System grants access",
+      "Step 3: File is written to disk"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-17-1765245545601",
+    "category": "Autonomous Agent",
+    "description": "Agent can run terminal commands",
+    "steps": [
+      "Step 1: Agent requests to run 'ls'",
+      "Step 2: System executes command",
+      "Step 3: Agent receives stdout"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-18-1765245545601",
+    "category": "UI/Design",
+    "description": "Implement Dark Mode",
+    "steps": [
+      "Step 1: Toggle theme switch",
+      "Step 2: Verify colors change to dark palette",
+      "Step 3: Persist preference"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-19-1765245545601",
+    "category": "UI/Design",
+    "description": "Responsive Sidebar",
+    "steps": [
+      "Step 1: Resize window",
+      "Step 2: Verify sidebar collapses/expands correctly"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-20-1765245545601",
+    "category": "Settings",
+    "description": "Manage API Keys",
+    "steps": [
+      "Step 1: Navigate to Settings",
+      "Step 2: Enter Anthropic/Google keys",
+      "Step 3: Verify keys are saved securely (e.g. keytar or encrypted)"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-21-1765245545601",
+    "category": "Developer Experience",
+    "description": "Mock Electron for Web Dev",
+    "steps": [
+      "Step 1: Run `npm run dev:web`",
+      "Step 2: Verify app loads in Chrome",
+      "Step 3: Verify IPC calls return mock data"
+    ],
+    "status": "verified"
+  },
+  {
+    "id": "feature-22-1765245545601",
+    "category": "delete features",
+    "description": "ability to delete a feature from kanban view",
+    "steps": [
+      "add trash icon to card",
+      "verify confirm modal shows up",
+      "click confirm button"
+    ],
+    "status": "in_progress"
+  }
+]

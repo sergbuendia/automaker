@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Project } from "@/lib/electron";
 
-export type ViewMode = "welcome" | "spec" | "board" | "code" | "agent" | "settings" | "analysis" | "tools";
+export type ViewMode = "welcome" | "spec" | "board" | "code" | "agent" | "settings" | "analysis" | "tools" | "interview";
 export type ThemeMode = "light" | "dark" | "system";
 
 export interface ApiKeys {
@@ -10,13 +10,38 @@ export interface ApiKeys {
   google: string;
 }
 
+export interface ImageAttachment {
+  id: string;
+  data: string; // base64 encoded image data
+  mimeType: string; // e.g., "image/png", "image/jpeg"
+  filename: string;
+  size: number; // file size in bytes
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
+  images?: ImageAttachment[];
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  projectId: string;
+  messages: ChatMessage[];
+  createdAt: Date;
+  updatedAt: Date;
+  archived: boolean;
+}
+
 export interface Feature {
   id: string;
   category: string;
   description: string;
   steps: string[];
-  passes: boolean;
-  status: "backlog" | "planned" | "in_progress" | "review" | "verified" | "failed";
+  status: "backlog" | "in_progress" | "verified";
 }
 
 export interface FileTreeNode {
@@ -63,6 +88,27 @@ export interface AppState {
   // Project Analysis
   projectAnalysis: ProjectAnalysis | null;
   isAnalyzing: boolean;
+
+  // Chat Sessions
+  chatSessions: ChatSession[];
+  currentChatSession: ChatSession | null;
+  chatHistoryOpen: boolean;
+
+  // Auto Mode
+  isAutoModeRunning: boolean;
+  currentAutoTask: string | null; // Feature ID being worked on
+  autoModeActivityLog: AutoModeActivity[];
+}
+
+export interface AutoModeActivity {
+  id: string;
+  featureId: string;
+  timestamp: Date;
+  type: "start" | "progress" | "tool" | "complete" | "error" | "planning" | "action" | "verification";
+  message: string;
+  tool?: string;
+  passes?: boolean;
+  phase?: "planning" | "action" | "verification";
 }
 
 export interface AppActions {
@@ -101,6 +147,23 @@ export interface AppActions {
   setIsAnalyzing: (isAnalyzing: boolean) => void;
   clearAnalysis: () => void;
 
+  // Chat Session actions
+  createChatSession: (title?: string) => ChatSession;
+  updateChatSession: (sessionId: string, updates: Partial<ChatSession>) => void;
+  addMessageToSession: (sessionId: string, message: ChatMessage) => void;
+  setCurrentChatSession: (session: ChatSession | null) => void;
+  archiveChatSession: (sessionId: string) => void;
+  unarchiveChatSession: (sessionId: string) => void;
+  deleteChatSession: (sessionId: string) => void;
+  setChatHistoryOpen: (open: boolean) => void;
+  toggleChatHistory: () => void;
+
+  // Auto Mode actions
+  setAutoModeRunning: (running: boolean) => void;
+  setCurrentAutoTask: (taskId: string | null) => void;
+  addAutoModeActivity: (activity: Omit<AutoModeActivity, "id" | "timestamp">) => void;
+  clearAutoModeActivity: () => void;
+
   // Reset
   reset: () => void;
 }
@@ -120,6 +183,12 @@ const initialState: AppState = {
   },
   projectAnalysis: null,
   isAnalyzing: false,
+  chatSessions: [],
+  currentChatSession: null,
+  chatHistoryOpen: false,
+  isAutoModeRunning: false,
+  currentAutoTask: null,
+  autoModeActivityLog: [],
 };
 
 export const useAppStore = create<AppState & AppActions>()(
@@ -207,6 +276,124 @@ export const useAppStore = create<AppState & AppActions>()(
       setIsAnalyzing: (isAnalyzing) => set({ isAnalyzing }),
       clearAnalysis: () => set({ projectAnalysis: null, isAnalyzing: false }),
 
+      // Chat Session actions
+      createChatSession: (title) => {
+        const currentProject = get().currentProject;
+        if (!currentProject) {
+          throw new Error("No project selected");
+        }
+
+        const now = new Date();
+        const session: ChatSession = {
+          id: `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          title: title || `Chat ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+          projectId: currentProject.id,
+          messages: [{
+            id: "welcome",
+            role: "assistant",
+            content: "Hello! I'm the Automaker Agent. I can help you build software autonomously. What would you like to create today?",
+            timestamp: now,
+          }],
+          createdAt: now,
+          updatedAt: now,
+          archived: false,
+        };
+
+        set({
+          chatSessions: [...get().chatSessions, session],
+          currentChatSession: session,
+        });
+
+        return session;
+      },
+
+      updateChatSession: (sessionId, updates) => {
+        set({
+          chatSessions: get().chatSessions.map((session) =>
+            session.id === sessionId
+              ? { ...session, ...updates, updatedAt: new Date() }
+              : session
+          ),
+        });
+
+        // Update current session if it's the one being updated
+        const currentSession = get().currentChatSession;
+        if (currentSession && currentSession.id === sessionId) {
+          set({
+            currentChatSession: { ...currentSession, ...updates, updatedAt: new Date() }
+          });
+        }
+      },
+
+      addMessageToSession: (sessionId, message) => {
+        const sessions = get().chatSessions;
+        const sessionIndex = sessions.findIndex(s => s.id === sessionId);
+
+        if (sessionIndex >= 0) {
+          const updatedSessions = [...sessions];
+          updatedSessions[sessionIndex] = {
+            ...updatedSessions[sessionIndex],
+            messages: [...updatedSessions[sessionIndex].messages, message],
+            updatedAt: new Date(),
+          };
+
+          set({ chatSessions: updatedSessions });
+
+          // Update current session if it's the one being updated
+          const currentSession = get().currentChatSession;
+          if (currentSession && currentSession.id === sessionId) {
+            set({
+              currentChatSession: updatedSessions[sessionIndex]
+            });
+          }
+        }
+      },
+
+      setCurrentChatSession: (session) => {
+        set({ currentChatSession: session });
+      },
+
+      archiveChatSession: (sessionId) => {
+        get().updateChatSession(sessionId, { archived: true });
+      },
+
+      unarchiveChatSession: (sessionId) => {
+        get().updateChatSession(sessionId, { archived: false });
+      },
+
+      deleteChatSession: (sessionId) => {
+        const currentSession = get().currentChatSession;
+        set({
+          chatSessions: get().chatSessions.filter((s) => s.id !== sessionId),
+          currentChatSession: currentSession?.id === sessionId ? null : currentSession,
+        });
+      },
+
+      setChatHistoryOpen: (open) => set({ chatHistoryOpen: open }),
+
+      toggleChatHistory: () => set({ chatHistoryOpen: !get().chatHistoryOpen }),
+
+      // Auto Mode actions
+      setAutoModeRunning: (running) => set({ isAutoModeRunning: running }),
+      setCurrentAutoTask: (taskId) => set({ currentAutoTask: taskId }),
+
+      addAutoModeActivity: (activity) => {
+        const id = `activity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newActivity: AutoModeActivity = {
+          ...activity,
+          id,
+          timestamp: new Date(),
+        };
+
+        // Keep only the last 100 activities to avoid memory issues
+        const currentLog = get().autoModeActivityLog;
+        const updatedLog = [...currentLog, newActivity].slice(-100);
+
+        set({ autoModeActivityLog: updatedLog });
+      },
+
+      clearAutoModeActivity: () => set({ autoModeActivityLog: [] }),
+
       // Reset
       reset: () => set(initialState),
     }),
@@ -217,6 +404,8 @@ export const useAppStore = create<AppState & AppActions>()(
         theme: state.theme,
         sidebarOpen: state.sidebarOpen,
         apiKeys: state.apiKeys,
+        chatSessions: state.chatSessions,
+        chatHistoryOpen: state.chatHistoryOpen,
       }),
     }
   )
