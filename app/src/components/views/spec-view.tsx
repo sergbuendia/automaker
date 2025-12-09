@@ -20,7 +20,7 @@ export function SpecView() {
     setIsLoading(true);
     try {
       const api = getElectronAPI();
-      const result = await api.readFile(`${currentProject.path}/app_spec.txt`);
+      const result = await api.readFile(`${currentProject.path}/.automaker/app_spec.txt`);
 
       if (result.success && result.content) {
         setAppSpec(result.content);
@@ -44,7 +44,7 @@ export function SpecView() {
     setIsSaving(true);
     try {
       const api = getElectronAPI();
-      await api.writeFile(`${currentProject.path}/app_spec.txt`, appSpec);
+      await api.writeFile(`${currentProject.path}/.automaker/app_spec.txt`, appSpec);
       setHasChanges(false);
     } catch (error) {
       console.error("Failed to save spec:", error);
@@ -92,7 +92,7 @@ export function SpecView() {
           <div>
             <h1 className="text-xl font-bold">App Specification</h1>
             <p className="text-sm text-muted-foreground">
-              {currentProject.path}/app_spec.txt
+              {currentProject.path}/.automaker/app_spec.txt
             </p>
           </div>
         </div>

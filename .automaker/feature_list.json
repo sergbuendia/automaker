@@ -1,64 +1,11 @@
 [
   {
-    "id": "feature-1765259922422-d61lu00sq",
-    "category": "Core",
-    "description": "add a context feature / route which allows users to upload files or images or text which will persist to .automaker/context. there should be a left panel with all context files and a text editor or image previewer that lets users view edit delete the context.  include the context in every single coding prompt or improve the coding_prompt.md to have a phase where it loads in that context",
-    "steps": [],
-    "status": "verified"
-  },
-  {
-    "id": "feature-1765260287663-pnwg0wfgz",
-    "category": "Agent Runner",
-    "description": "When I archived a session I had selected, I'd expect it to unselect it",
-    "steps": [
-      "1. create a session",
-      "2. select it",
-      "3. archive it",
-      "4. expect empty state placeholder in right panel"
-    ],
-    "status": "verified"
-  },
-  {
-    "id": "feature-1765260557163-86b3tby5d",
-    "category": "Core",
-    "description": "Remove analysis link and related code, it's not useful",
-    "steps": [],
-    "status": "verified"
-  },
-  {
-    "id": "feature-1765260608543-frhplaxss",
-    "category": "Kanban",
-    "description": "when clicking a value in the typeahead, there is a bug where it does not close automatically, fix this",
-    "steps": [],
-    "status": "verified"
-  },
-  {
-    "id": "feature-1765260671085-7dgotl21h",
-    "category": "Kanban",
-    "description": "show a error toast when concurrency limit is hit and someone tries to drag a card into in progress to give them feedback why it won't work.",
-    "steps": [],
-    "status": "backlog"
-  },
-  {
-    "id": "feature-1765260791341-iaxxt172n",
-    "category": "Kanban",
-    "description": "Add a way to force stop an agent on a card which is currently running",
-    "steps": [],
-    "status": "verified"
-  },
-  {
     "id": "feature-1765260864296-98yunv0vj",
     "category": "Kanban",
     "description": "Remove drag icon from cards when in in progress or verified.  also add a timer that tracks how long it has been since the agent started, a count up timer basically formatted 00:00",
     "steps": [],
-    "status": "backlog"
-  },
-  {
-    "id": "feature-1765260912320-p7d5eang8",
-    "category": "Kanban",
-    "description": "add a count up timer for showing how long the card has been in progress",
-    "steps": [],
-    "status": "verified"
+    "status": "in_progress",
+    "startedAt": "2025-12-09T07:08:26.822Z"
   },
   {
     "id": "feature-1765261027396-b78maajg7",
@@ -72,27 +19,46 @@
     "category": "Context",
     "description": "Add Context File should show a file name and a textarea for the context info, that text area should allow drag n drop for txt files and .md files which the system will parse and put into the text area",
     "steps": [],
-    "status": "backlog"
-  },
-  {
-    "id": "feature-1765262261787-o84j26dty",
-    "category": "Kanban",
-    "description": "Ability to delete in progress cards which will auto stop their agents on delete",
-    "steps": [],
-    "status": "verified"
+    "status": "in_progress",
+    "startedAt": "2025-12-09T07:04:29.353Z"
   },
   {
     "id": "feature-1765262348401-hivjg6vuq",
     "category": "Kanban",
     "description": "Make in progress column  double width so that the cards display 2 columns masonry layout",
     "steps": [],
-    "status": "backlog"
+    "status": "in_progress",
+    "startedAt": "2025-12-09T07:04:18.731Z"
   },
   {
     "id": "feature-1765262430461-vennhg2b5",
     "category": "Core",
     "description": "When the electron ui refreshes, it often redirects me back to the overview, remeber my last route and restore on app load",
     "steps": [],
-    "status": "backlog"
+    "status": "in_progress",
+    "startedAt": "2025-12-09T07:04:14.040Z"
+  },
+  {
+    "id": "feature-1765263521367-vse4n57j8",
+    "category": "Spec Editor",
+    "description": "The spec editor no longer shows the content of the file, check the path if correct and using the .automaker directory",
+    "steps": [],
+    "status": "verified"
+  },
+  {
+    "id": "feature-1765263773317-k2cmvg9qh",
+    "category": "Core",
+    "description": "When opening a new project, verify the .automaker directory is created with necessary files and kick off an agent to analyze the project, refactor the app_spec to describe the project and it's tech stack, and any features currently implemented, also define a blank feature_list.json, create necessary context and agents-context directories, and coding_prompt.md.",
+    "steps": [],
+    "status": "in_progress",
+    "startedAt": "2025-12-09T07:09:12.619Z"
+  },
+  {
+    "id": "feature-1765263831805-mr6mduv8p",
+    "category": "Core",
+    "description": "remove claude-progress from anywhere in code or prompts as it's no longer needed",
+    "steps": [],
+    "status": "in_progress",
+    "startedAt": "2025-12-09T07:09:11.202Z"
   }
 ]
