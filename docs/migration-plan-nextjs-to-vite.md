@@ -177,10 +177,10 @@ Our current Next.js implementation uses **less than 5%** of the framework's capa
 
 ## Folder Structure
 
-### apps/app/ (After Migration)
+### apps/ui/ (After Migration)
 
 ```
-apps/app/
+apps/ui/
 ├── electron/                          # Electron main process (TypeScript)
 │   ├── main.ts                        # Main entry point
 │   ├── preload.ts                     # Context bridge

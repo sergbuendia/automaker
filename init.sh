@@ -62,8 +62,8 @@ kill_port() {
 }
 
 # Kill any existing processes on required ports
-echo -e "${YELLOW}Checking for processes on ports 3007 and 3008...${NC}"
-kill_port 3007
+echo -e "${YELLOW}Checking for processes on ports 5173 and 3008...${NC}"
+kill_port 5173
 kill_port 3008
 echo ""
 
@@ -129,7 +129,7 @@ while true; do
             fi
 
             echo -e "${GREEN}✓ Server is ready!${NC}"
-            echo "The application will be available at: ${GREEN}http://localhost:3007${NC}"
+            echo "The application will be available at: ${GREEN}http://localhost:5173${NC}"
             echo ""
             npm run dev:web
             break
