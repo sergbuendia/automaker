@@ -291,17 +291,26 @@ async function main() {
   // Install Playwright browsers from apps/ui where @playwright/test is installed
   log('Checking Playwright browsers...', 'yellow');
   try {
-    await new Promise((resolve) => {
+    const exitCode = await new Promise((resolve) => {
       const playwright = crossSpawn(
         'npx',
         ['playwright', 'install', 'chromium'],
         { stdio: 'inherit', cwd: path.join(__dirname, 'apps', 'ui') }
       );
-      playwright.on('close', () => resolve());
-      playwright.on('error', () => resolve());
+      playwright.on('close', (code) => resolve(code));
+      playwright.on('error', () => resolve(1));
     });
+
+    if (exitCode === 0) {
+      log('Playwright browsers ready', 'green');
+    } else {
+      log(
+        'Playwright installation failed (browser automation may not work)',
+        'yellow'
+      );
+    }
   } catch {
-    // Ignore errors - Playwright install is optional
+    log('Playwright installation skipped', 'yellow');
   }
 
   // Kill any existing processes on required ports
