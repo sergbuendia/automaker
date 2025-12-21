@@ -96,12 +96,21 @@ describe('node-finder', () => {
     });
 
     it('should handle Windows-style paths', () => {
+      // On Windows, path.dirname recognizes backslash paths
+      // On other platforms, backslash is not a path separator
       const nodePath = 'C:\\Program Files\\nodejs\\node.exe';
       const currentPath = 'C:\\Windows\\System32';
 
       const result = buildEnhancedPath(nodePath, currentPath);
 
-      expect(result).toBe(`C:\\Program Files\\nodejs${delimiter}${currentPath}`);
+      if (process.platform === 'win32') {
+        // On Windows, should prepend the node directory
+        expect(result).toBe(`C:\\Program Files\\nodejs${delimiter}${currentPath}`);
+      } else {
+        // On non-Windows, backslash paths are treated as relative paths
+        // path.dirname returns '.' so the function returns currentPath unchanged
+        expect(result).toBe(currentPath);
+      }
     });
 
     it('should use default empty string for currentPath', () => {

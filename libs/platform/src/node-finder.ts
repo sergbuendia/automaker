@@ -180,13 +180,14 @@ function findNodeWindows(homeDir: string): NodeFinderResult | null {
     return { nodePath: nvmNode, source: 'nvm-windows' };
   }
 
-  // fnm on Windows
+  // fnm on Windows (prioritize canonical installation path over shell shims)
   const fnmWindowsPaths = [
+    path.join(homeDir, '.fnm', 'node-versions'),
     path.join(
       process.env.LOCALAPPDATA || path.join(homeDir, 'AppData', 'Local'),
-      'fnm_multishells'
+      'fnm',
+      'node-versions'
     ),
-    path.join(homeDir, '.fnm', 'node-versions'),
   ];
 
   for (const fnmBasePath of fnmWindowsPaths) {
@@ -332,7 +333,9 @@ export function buildEnhancedPath(nodePath: string, currentPath: string = ''): s
   const nodeDir = path.dirname(nodePath);
 
   // Don't add if already present or if it's just '.'
-  if (nodeDir === '.' || currentPath.includes(nodeDir)) {
+  // Use path segment matching to avoid false positives (e.g., /opt/node vs /opt/node-v18)
+  const pathSegments = currentPath.split(path.delimiter);
+  if (nodeDir === '.' || pathSegments.includes(nodeDir)) {
     return currentPath;
   }
 
