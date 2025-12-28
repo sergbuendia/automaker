@@ -393,9 +393,13 @@ export class CursorProvider extends BaseProvider {
         let toolInput: unknown;
 
         if (toolCall.readToolCall) {
+          // Skip if args not yet populated (partial streaming event)
+          if (!toolCall.readToolCall.args) return null;
           toolName = 'Read';
           toolInput = { file_path: toolCall.readToolCall.args.path };
         } else if (toolCall.writeToolCall) {
+          // Skip if args not yet populated (partial streaming event)
+          if (!toolCall.writeToolCall.args) return null;
           toolName = 'Write';
           toolInput = {
             file_path: toolCall.writeToolCall.args.path,
@@ -431,7 +435,8 @@ export class CursorProvider extends BaseProvider {
           };
         }
 
-        // For completed events, emit tool_result
+        // For completed events, emit both tool_use and tool_result
+        // This ensures the UI shows the tool call even if 'started' was skipped
         if (toolEvent.subtype === 'completed') {
           let resultContent = '';
 
@@ -447,6 +452,12 @@ export class CursorProvider extends BaseProvider {
             message: {
               role: 'assistant',
               content: [
+                {
+                  type: 'tool_use',
+                  name: toolName,
+                  tool_use_id: toolEvent.call_id,
+                  input: toolInput,
+                },
                 {
                   type: 'tool_result',
                   tool_use_id: toolEvent.call_id,
