@@ -186,6 +186,31 @@ function getPrimaryAction(
 }
 
 /**
+ * Get secondary actions for inline display based on feature status
+ */
+function getSecondaryActions(
+  feature: Feature,
+  handlers: RowActionHandlers
+): Array<{
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+}> {
+  const actions = [];
+
+  // Refine action for waiting_approval status
+  if (feature.status === 'waiting_approval' && handlers.onFollowUp) {
+    actions.push({
+      icon: Wand2,
+      label: 'Refine',
+      onClick: handlers.onFollowUp,
+    });
+  }
+
+  return actions;
+}
+
+/**
  * RowActions provides an inline action menu for list view rows.
  *
  * Features:
@@ -198,7 +223,7 @@ function getPrimaryAction(
  * Actions by status:
  * - Backlog: Edit, Delete, Make (implement), View Plan, Spawn Sub-Task
  * - In Progress: View Logs, Resume, Approve Plan, Manual Verify, Edit, Spawn Sub-Task, Delete
- * - Waiting Approval: Refine, Verify, View Logs, View PR, Edit, Spawn Sub-Task, Delete
+ * - Waiting Approval: Refine (inline secondary), Verify, View Logs, View PR, Edit, Spawn Sub-Task, Delete
  * - Verified: View Logs, View PR, View Branch, Complete, Edit, Spawn Sub-Task, Delete
  * - Running (auto task): View Logs, Approve Plan, Edit, Spawn Sub-Task, Force Stop
  * - Pipeline statuses: View Logs, Edit, Spawn Sub-Task, Delete
@@ -238,6 +263,7 @@ export const RowActions = memo(function RowActions({
   );
 
   const primaryAction = getPrimaryAction(feature, handlers, isCurrentAutoTask);
+  const secondaryActions = getSecondaryActions(feature, handlers);
 
   // Helper to close menu after action
   const withClose = useCallback(
@@ -279,6 +305,24 @@ export const RowActions = memo(function RowActions({
           <primaryAction.icon className="w-4 h-4" />
         </Button>
       )}
+
+      {/* Secondary action buttons */}
+      {secondaryActions.map((action, index) => (
+        <Button
+          key={`secondary-action-${index}`}
+          variant="ghost"
+          size="icon-sm"
+          className={cn('h-7 w-7', 'text-muted-foreground', 'hover:bg-muted hover:text-foreground')}
+          onClick={(e) => {
+            e.stopPropagation();
+            action.onClick();
+          }}
+          title={action.label}
+          data-testid={`row-action-secondary-${feature.id}-${action.label.toLowerCase()}`}
+        >
+          <action.icon className="w-4 h-4" />
+        </Button>
+      ))}
 
       {/* Dropdown menu */}
       <DropdownMenu open={open} onOpenChange={handleOpenChange}>
