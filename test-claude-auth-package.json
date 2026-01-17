@@ -1,0 +1,15 @@
+{
+  "name": "test-claude-auth",
+  "version": "1.0.0",
+  "description": "Тестовый скрипт для проверки аутентификации Claude CLI",
+  "main": "test-claude-auth.js",
+  "scripts": {
+    "test": "node test-claude-auth.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^1.0.0"
+  },
+  "keywords": ["claude", "cli", "authentication", "test"],
+  "author": "",
+  "license": "MIT"
+}
