@@ -8,6 +8,8 @@
 import { query, type Options } from '@anthropic-ai/claude-agent-sdk';
 import { BaseProvider } from './base-provider.js';
 import { classifyError, getUserFriendlyErrorMessage, createLogger } from '@automaker/utils';
+import { getClaudeSettingsPath } from '@automaker/platform';
+import * as fs from 'fs';
 
 const logger = createLogger('ClaudeProvider');
 import { getThinkingTokenBudget, validateBareModelId } from '@automaker/types';
@@ -22,27 +24,78 @@ import type {
 // Only these vars are passed - nothing else from process.env leaks through.
 const ALLOWED_ENV_VARS = [
   'ANTHROPIC_API_KEY',
-  'ANTHROPIC_BASE_URL',
   'ANTHROPIC_AUTH_TOKEN',
+  'ANTHROPIC_BASE_URL',
   'PATH',
   'HOME',
   'SHELL',
   'TERM',
   'USER',
+  'USERNAME',
   'LANG',
   'LC_ALL',
+  // Windows-specific
+  'USERPROFILE',
+  'APPDATA',
+  'LOCALAPPDATA',
 ];
 
 /**
+ * Load environment variables from Claude CLI settings.json
+ */
+function loadSettingsEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+
+  try {
+    const settingsPath = getClaudeSettingsPath();
+    if (fs.existsSync(settingsPath)) {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      if (settings.env && typeof settings.env === 'object') {
+        // Add all variables from settings.json env section
+        Object.keys(settings.env).forEach((key) => {
+          const value = settings.env[key];
+          if (typeof value === 'string') {
+            env[key] = value;
+          }
+        });
+        if (Object.keys(env).length > 0) {
+          logger.info(
+            `Loaded ${Object.keys(env).length} environment variable(s) from Claude settings.json: ${Object.keys(env).join(', ')}`
+          );
+        }
+      }
+    }
+  } catch (error) {
+    // Silently ignore errors reading settings.json - it's optional
+    logger.debug('Could not read Claude settings.json:', error);
+  }
+
+  return env;
+}
+
+/**
  * Build environment for the SDK with only explicitly allowed variables
+ * Also includes variables from Claude CLI settings.json
  */
 function buildEnv(): Record<string, string | undefined> {
   const env: Record<string, string | undefined> = {};
+
+  // First, load variables from settings.json (these take precedence for CLI auth)
+  const settingsEnv = loadSettingsEnv();
+  Object.assign(env, settingsEnv);
+
+  // Then add allowed variables from process.env (these override settings.json)
   for (const key of ALLOWED_ENV_VARS) {
     if (process.env[key]) {
       env[key] = process.env[key];
     }
   }
+
+  // Ensure HOME is set (use USERPROFILE on Windows if HOME is not set)
+  if (!env.HOME && env.USERPROFILE) {
+    env.HOME = env.USERPROFILE;
+  }
+
   return env;
 }
 
